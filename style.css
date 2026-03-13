@@ -224,7 +224,28 @@ body {
     text-align: center;
     font-size: 1.2rem;
     color: var(--text-dim);
+    margin-bottom: 1.5rem;
+}
+
+.notes-wrapper {
     margin-bottom: 2rem;
+}
+
+#expense-note {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--text);
+    outline: none;
+    transition: border 0.2s;
+}
+
+#expense-note:focus {
+    border-color: var(--primary);
 }
 
 /* Category Grid */
@@ -427,9 +448,34 @@ body {
     padding: 12px 14px;
     border-radius: 12px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 6px;
     margin-bottom: 8px;
+}
+
+.hist-main {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.hist-cat {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.hist-amt {
+    font-weight: 700;
+}
+
+.hist-note {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-style: italic;
+    background: #ffffff;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px dashed var(--border);
 }
 
 /* Buttons */

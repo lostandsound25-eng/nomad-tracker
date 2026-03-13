@@ -65,7 +65,8 @@ function init() {
         dashDays: document.getElementById('dash-days'),
         dashTotal: document.getElementById('dash-total'),
         projMonth: document.getElementById('proj-month'),
-        projQuarter: document.getElementById('proj-quarter')
+        projQuarter: document.getElementById('proj-quarter'),
+        notesInput: document.getElementById('expense-note')
     };
 
     // Set Date Input to Today
@@ -258,7 +259,8 @@ function processSheetsData(grid) {
         lunch: headers.indexOf('lunch'),
         dinner: headers.indexOf('dinner'),
         transportation: headers.indexOf('transportation'),
-        miscellaneous: headers.indexOf('miscellaneous')
+        miscellaneous: headers.indexOf('miscellaneous'),
+        notes: headers.indexOf('notes')
     };
 
     const newHistory = [];
@@ -268,6 +270,8 @@ function processSheetsData(grid) {
 
         const dateObj = new Date(rawDate);
         if (isNaN(dateObj)) return;
+
+        const rowNote = idx.notes > -1 ? String(row[idx.notes] || '').trim() : '';
 
         const categories = ['accommodation', 'breakfast', 'lunch', 'dinner', 'transportation', 'miscellaneous'];
         categories.forEach(cat => {
@@ -280,7 +284,8 @@ function processSheetsData(grid) {
                     localAmount: val,
                     currency: 'USD',
                     usdAmount: val,
-                    symbol: '$'
+                    symbol: '$',
+                    note: rowNote
                 });
             }
         });
@@ -344,7 +349,8 @@ function saveExpense() {
         localAmount: amount,
         currency: state.currency,
         usdAmount: amount * state.fxRate,
-        symbol: CURRENCY_SYMBOLS[state.currency]
+        symbol: CURRENCY_SYMBOLS[state.currency],
+        note: els.notesInput.value.trim()
     };
 
     state.history.unshift(expense);
@@ -356,6 +362,7 @@ function saveExpense() {
     // Reset UI
     els.localInput.value = '';
     els.usdOutput.innerText = '0.00';
+    els.notesInput.value = '';
     els.catBtns.forEach(b => b.classList.remove('selected'));
     state.selectedCategory = null;
 
@@ -472,10 +479,16 @@ function showDayDetail(dateKey, dateObj, dayData) {
     dayData.items.forEach(item => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'history-item';
-        itemDiv.innerHTML = `
-            <span>${icons[item.category] || '💰'} ${item.category}</span>
-            <strong>$${item.usdAmount.toFixed(2)}</strong>
+        let innerHTML = `
+            <div class="hist-main">
+                <span class="hist-cat">${icons[item.category] || '💰'} ${item.category}</span>
+                <span class="hist-amt">$${item.usdAmount.toFixed(2)}</span>
+            </div>
         `;
+        if (item.note) {
+            innerHTML += `<div class="hist-note">"${item.note}"</div>`;
+        }
+        itemDiv.innerHTML = innerHTML;
         list.appendChild(itemDiv);
     });
 }
