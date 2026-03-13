@@ -56,31 +56,50 @@
                 </header>
 
                 <div class="entry-card">
-                    <div class="currency-row">
-                        <select id="local-currency" class="currency-select">
-                            <option value="USD">USD (US Dollar)</option>
-                            <option value="IDR">IDR (Indonesian Rupiah)</option>
-                            <option value="THB">THB (Thai Baht)</option>
-                            <option value="VND">VND (Vietnamese Dong)</option>
-                            <option value="LAK">LAK (Laotian Kip)</option>
-                            <option value="KHR">KHR (Cambodian Riel)</option>
-                            <option value="EUR">EUR (Euro)</option>
-                            <option value="JPY">JPY (Japanese Yen)</option>
-                            <option value="GBP">GBP (British Pound)</option>
-                        </select>
-                        <div class="conversion-indicator">
-                            <span class="rate-label">Rate:</span>
-                            <span id="fx-rate">Fetching...</span>
+                    <div class="currency-settings">
+                        <div class="currency-col">
+                            <label>Spending</label>
+                            <select id="local-currency" class="currency-select">
+                                <option value="USD">USD ($)</option>
+                                <option value="IDR">IDR (Rp)</option>
+                                <option value="THB">THB (฿)</option>
+                                <option value="VND">VND (₫)</option>
+                                <option value="LAK">LAK (₭)</option>
+                                <option value="KHR">KHR (៛)</option>
+                                <option value="EUR">EUR (€)</option>
+                                <option value="JPY">JPY (¥)</option>
+                                <option value="GBP">GBP (£)</option>
+                            </select>
+                        </div>
+                        <div class="currency-col">
+                            <label>Home</label>
+                            <select id="home-currency" class="currency-select">
+                                <option value="USD">USD ($)</option>
+                                <option value="IDR">IDR (Rp)</option>
+                                <option value="THB">THB (฿)</option>
+                                <option value="VND">VND (₫)</option>
+                                <option value="LAK">LAK (₭)</option>
+                                <option value="KHR">KHR (៛)</option>
+                                <option value="EUR">EUR (€)</option>
+                                <option value="JPY">JPY (¥)</option>
+                                <option value="GBP">GBP (£)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="fx-banner">
+                        <span id="fx-rate">1 spent ≈ 1 home</span>
+                    </div>
+
+                    <div class="amount-container">
+                        <div id="amount-scaler" class="amount-scaler">
+                            <span class="currency-symbol" id="active-symbol">Rp</span>
+                            <input type="number" id="local-amount" placeholder="0" inputmode="decimal" autofocus>
                         </div>
                     </div>
 
-                    <div class="amount-input-wrapper">
-                        <span class="currency-symbol" id="active-symbol">Rp</span>
-                        <input type="number" id="local-amount" placeholder="0.00" inputmode="decimal" autofocus>
-                    </div>
-
                     <div class="usd-preview">
-                        ≈ <span id="usd-amount">0.00</span> <span class="usd-label">USD</span>
+                        ≈ <span id="usd-amount">0.00</span> <span id="home-symbol-label">USD</span>
                     </div>
 
                     <div class="notes-wrapper">

@@ -1,8 +1,9 @@
 // App State
 const state = {
     activeTab: 'log',
-    currency: 'USD',
-    fxRate: 1,
+    spendingCurrency: localStorage.getItem('nomad_last_spending_currency') || 'USD',
+    homeCurrency: localStorage.getItem('nomad_home_currency') || 'USD',
+    fxRateToHome: 1,
     selectedCategory: null,
     history: JSON.parse(localStorage.getItem('nomad_history') || '[]'),
     calMonth: new Date().getMonth(),
@@ -55,9 +56,11 @@ function init() {
         btns: document.querySelectorAll('.tab-btn'),
         localInput: document.getElementById('local-amount'),
         usdOutput: document.getElementById('usd-amount'),
-        currencySelect: document.getElementById('local-currency'),
+        spendingSelect: document.getElementById('local-currency'),
+        homeSelect: document.getElementById('home-currency'),
         symbol: document.getElementById('active-symbol'),
-        rate: document.getElementById('fx-rate'),
+        rateBanner: document.getElementById('fx-rate'),
+        homeLabel: document.getElementById('home-symbol-label'),
         catBtns: document.querySelectorAll('.cat-btn'),
         saveBtn: document.getElementById('save-expense'),
         // Dashboard elements
@@ -83,18 +86,38 @@ function init() {
         }
     });
 
+    // Initial Select Setup
+    els.spendingSelect.value = state.spendingCurrency;
+    els.homeSelect.value = state.homeCurrency;
+    els.symbol.innerText = CURRENCY_SYMBOLS[state.spendingCurrency];
+    els.homeLabel.innerText = state.homeCurrency;
+    autoScaleInput();
+
     // Fetch Initial Rates
     updateFxRate();
+    updateDashboard();
 
     // Event Listeners
-    els.currencySelect.addEventListener('change', (e) => {
-        state.currency = e.target.value;
-        els.symbol.innerText = CURRENCY_SYMBOLS[state.currency];
+    els.spendingSelect.addEventListener('change', (e) => {
+        state.spendingCurrency = e.target.value;
+        localStorage.setItem('nomad_last_spending_currency', state.spendingCurrency);
+        els.symbol.innerText = CURRENCY_SYMBOLS[state.spendingCurrency];
         updateFxRate();
-        calculateUsd();
+        calculateHomeValue();
     });
 
-    els.localInput.addEventListener('input', calculateUsd);
+    els.homeSelect.addEventListener('change', (e) => {
+        state.homeCurrency = e.target.value;
+        localStorage.setItem('nomad_home_currency', state.homeCurrency);
+        els.homeLabel.innerText = state.homeCurrency;
+        updateFxRate();
+        calculateHomeValue();
+    });
+
+    els.localInput.addEventListener('input', () => {
+        autoScaleInput();
+        calculateHomeValue();
+    });
 
     els.catBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -299,38 +322,43 @@ function processSheetsData(grid) {
 
 // --- Logic ---
 
+function autoScaleInput() {
+    const val = els.localInput.value || '0';
+    // Dynamically adjust the width of the input based on text length
+    els.localInput.style.width = (val.length + 1) + 'ch';
+}
+
 async function updateFxRate() {
-    if (state.currency === 'USD') {
-        state.fxRate = 1;
-        els.rate.innerText = '1 USD = $1.00';
-        calculateUsd();
+    if (state.spendingCurrency === state.homeCurrency) {
+        state.fxRateToHome = 1;
+        els.rateBanner.innerText = `1 ${state.spendingCurrency} = 1.00 ${state.homeCurrency}`;
+        calculateHomeValue();
         return;
     }
 
-    els.rate.innerText = 'Updating...';
+    els.rateBanner.innerText = 'Updating rates...';
     try {
-        const response = await fetch(`https://open.er-api.com/v6/latest/USD`);
+        const response = await fetch(`https://open.er-api.com/v6/latest/${state.homeCurrency}`);
         const data = await response.json();
-        const rateToUsd = 1 / data.rates[state.currency];
-        state.fxRate = rateToUsd;
-        els.rate.innerText = `1 ${state.currency} = $${rateToUsd.toFixed(6)}`;
-        calculateUsd();
+        
+        // We want the rate relative to the Home currency
+        const rateToHome = 1 / data.rates[state.spendingCurrency];
+        state.fxRateToHome = rateToHome;
+        
+        els.rateBanner.innerText = `1 ${state.spendingCurrency} ≈ ${rateToHome.toFixed(4)} ${state.homeCurrency}`;
+        calculateHomeValue();
     } catch (err) {
         console.error('FX Fetch failed', err);
-        const fallbacks = {
-            IDR: 0.000064, THB: 0.028, VND: 0.000041, LAK: 0.000047,
-            KHR: 0.00024, EUR: 1.09, JPY: 0.0067, GBP: 1.27
-        };
-        state.fxRate = fallbacks[state.currency] || 0.01;
-        els.rate.innerText = `1 ${state.currency} = $${state.fxRate} (Offline)`;
-        calculateUsd();
+        // Fallback logic could go here, but for now we show error
+        els.rateBanner.innerText = `Rates unavailable (Offline)`;
+        calculateHomeValue();
     }
 }
 
-function calculateUsd() {
+function calculateHomeValue() {
     const localVal = parseFloat(els.localInput.value) || 0;
-    const usdVal = localVal * state.fxRate;
-    els.usdOutput.innerText = usdVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const homeVal = localVal * state.fxRateToHome;
+    els.usdOutput.innerText = homeVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function saveExpense() {
@@ -347,9 +375,9 @@ function saveExpense() {
         date: new Date(customDate + 'T00:00:00').toISOString(), // Store as Local Midnight ISO
         category: state.selectedCategory,
         localAmount: amount,
-        currency: state.currency,
-        usdAmount: amount * state.fxRate,
-        symbol: CURRENCY_SYMBOLS[state.currency],
+        currency: state.spendingCurrency,
+        usdAmount: amount * state.fxRateToHome,
+        symbol: CURRENCY_SYMBOLS[state.spendingCurrency],
         note: els.notesInput.value.trim()
     };
 
@@ -361,6 +389,7 @@ function saveExpense() {
 
     // Reset UI
     els.localInput.value = '';
+    els.localInput.style.width = '1ch'; // Reset scaler
     els.usdOutput.innerText = '0.00';
     els.notesInput.value = '';
     els.catBtns.forEach(b => b.classList.remove('selected'));
@@ -445,7 +474,7 @@ function renderCalendar() {
         div.innerHTML = `
             <span class="day-num">${day}</span>
             <div class="day-total ${!dayData ? 'zero' : ''}">
-                $${dayData ? dayData.total.toFixed(0) : '0'}
+                ${CURRENCY_SYMBOLS[state.homeCurrency]}${dayData ? dayData.total.toFixed(0) : '0'}
             </div>
         `;
 
@@ -482,7 +511,7 @@ function showDayDetail(dateKey, dateObj, dayData) {
         let innerHTML = `
             <div class="hist-main">
                 <span class="hist-cat">${icons[item.category] || '💰'} ${item.category}</span>
-                <span class="hist-amt">$${item.usdAmount.toFixed(2)}</span>
+                <span class="hist-amt">${CURRENCY_SYMBOLS[state.homeCurrency]}${item.usdAmount.toFixed(2)}</span>
             </div>
         `;
         if (item.note) {
@@ -551,13 +580,13 @@ function updateDashboard() {
     // 3. Math
     const avgDaily = totalUsd / uniqueDays;
 
-    els.dashTotal.innerText = `$${totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    els.dashTotal.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency]}${totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     els.dashDays.innerText = uniqueDays;
-    els.dashAvg.innerText = `$${avgDaily.toFixed(2)}`;
+    els.dashAvg.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency]}${avgDaily.toFixed(2)}`;
 
     // Projections
-    els.projMonth.innerText = `$${(avgDaily * 30).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-    els.projQuarter.innerText = `$${(avgDaily * 90).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    els.projMonth.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency]}${(avgDaily * 30).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    els.projQuarter.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency]}${(avgDaily * 90).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
     // 4. Category Breakdown
     renderCategoryBreakdown(totalUsd);
@@ -615,7 +644,7 @@ function renderCategoryDonut(total) {
         }
     });
 
-    document.getElementById('donut-total-val').innerText = `$${total.toFixed(0)}`;
+    document.getElementById('donut-total-val').innerText = `${CURRENCY_SYMBOLS[state.homeCurrency]}${total.toFixed(0)}`;
 }
 
 function renderCategoryBreakdown(total) {
@@ -643,7 +672,7 @@ function renderCategoryBreakdown(total) {
         row.innerHTML = `
             <div class="cat-stat-info">
                 <span>${cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
-                <span>$${amt.toFixed(2)} (${percent.toFixed(0)}%)</span>
+                <span>${CURRENCY_SYMBOLS[state.homeCurrency]}${amt.toFixed(2)} (${percent.toFixed(0)}%)</span>
             </div>
             <div class="progress-bar-bg">
                 <div class="progress-bar-fill" style="width: ${percent}%"></div>

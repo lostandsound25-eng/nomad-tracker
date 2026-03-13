@@ -168,63 +168,100 @@ body {
     margin-bottom: 1.5rem;
 }
 
-.currency-row {
+.currency-settings {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+    gap: 12px;
+    margin-bottom: 1rem;
+}
+
+.currency-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.currency-col label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
 }
 
 .currency-select {
     background: var(--bg);
     border: 1px solid var(--border);
     color: var(--text);
-    padding: 8px 12px;
-    border-radius: 10px;
-    font-size: 0.85rem;
-    outline: none;
-}
-
-.conversion-indicator {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-}
-
-#fx-rate {
-    color: var(--accent);
+    padding: 10px;
+    border-radius: 12px;
+    font-size: 0.9rem;
     font-weight: 600;
+    outline: none;
+    width: 100%;
 }
 
-.amount-input-wrapper {
+.fx-banner {
+    background: var(--primary-dim);
+    color: var(--primary-hover);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 6px;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.amount-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    height: 80px;
+}
+
+.amount-scaler {
     display: flex;
     align-items: baseline;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 0.5rem;
-}
-
-.currency-symbol {
-    font-size: 1.5rem;
-    color: var(--text-dim);
-    font-weight: 600;
+    position: relative;
 }
 
 #local-amount {
     background: none;
     border: none;
     color: var(--text);
-    font-size: 3.5rem;
+    font-size: 4rem;
     font-weight: 800;
-    width: 100%;
-    text-align: center;
+    width: auto;
+    max-width: 250px;
+    text-align: left;
     outline: none;
+    padding: 0;
+    margin: 0;
+    caret-color: transparent; /* Remove clunky terminal cursor */
+}
+
+#local-amount:focus {
+    text-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+}
+
+.currency-symbol {
+    font-size: 1.5rem;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-right: 8px;
+    transition: all 0.1s ease;
 }
 
 .usd-preview {
     text-align: center;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     color: var(--text-dim);
-    margin-bottom: 1.5rem;
+    font-weight: 500;
+    margin-bottom: 2rem;
 }
 
 .notes-wrapper {
