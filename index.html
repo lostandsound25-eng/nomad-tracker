@@ -141,9 +141,6 @@
             <section id="tab-history" class="tab-content">
                 <div class="history-header">
                     <h2>Spending Log</h2>
-                    <div class="ledger-actions">
-                        <button id="fetch-sheets" class="ghost-btn">Fetch History</button>
-                    </div>
                 </div>
 
                 <div class="calendar-container">
@@ -181,7 +178,13 @@
                         <button id="save-sync-url" class="sync-save-btn">Link</button>
                     </div>
                     
-                    <div class="audit-actions">
+                    <div class="audit-actions" style="margin-bottom: 1.5rem;">
+                        <button id="fetch-sheets" class="audit-btn">
+                            <span>🔄</span> Integrate Historical Data
+                        </button>
+                    </div>
+                    
+                    <div class="audit-actions" style="margin-top: 1.5rem; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 1rem;">
                         <button id="view-raw" class="audit-btn">
                             <span>📋</span> Export Data
                         </button>
@@ -198,7 +201,6 @@
                             <h2>Export to Long Format</h2>
                             <button onclick="closeModal()" class="close-btn">&times;</button>
                         </header>
-                        <p class="export-help">Copy the rows below and paste them into your Google Sheet to maintain your Long Format records.</p>
                         <div class="table-container">
                             <table class="export-table" id="raw-log-content">
                                 <!-- Populated via JS -->

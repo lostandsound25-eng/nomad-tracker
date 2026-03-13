@@ -662,12 +662,18 @@ function renderCalendar() {
             </div>
         `;
 
-        div.addEventListener('click', () => showDayDetail(key, dateObj, dayData));
+        div.addEventListener('click', () => showDayDetail(key, dateObj, dayData, div));
         body.appendChild(div);
     }
 }
 
-function showDayDetail(dateKey, dateObj, dayData) {
+function showDayDetail(dateKey, dateObj, dayData, clickedDiv) {
+    // Selection logic
+    if (clickedDiv) {
+        document.querySelectorAll('.cal-day').forEach(d => d.classList.remove('selected-day'));
+        clickedDiv.classList.add('selected-day');
+    }
+
     const panel = document.getElementById('day-detail-panel');
     const title = document.getElementById('detail-date');
     const list = document.getElementById('detail-items');
@@ -676,31 +682,42 @@ function showDayDetail(dateKey, dateObj, dayData) {
     title.innerText = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     list.innerHTML = '';
 
-    if (!dayData || dayData.items.length === 0) {
-        list.innerHTML = '<p class="empty-detail">No expenses recorded for this day.</p>';
-        return;
-    }
-
-    // Sort items by amount
-    dayData.items.sort((a, b) => b.usdAmount - a.usdAmount);
-
+    const categories = ['accommodation', 'breakfast', 'lunch', 'dinner', 'transportation', 'miscellaneous'];
     const icons = {
         accommodation: '🏠', breakfast: '☕', lunch: '🥪',
         dinner: '🍲', transportation: '🛵', miscellaneous: '✨'
     };
 
-    dayData.items.forEach(item => {
+    const catDataMap = {};
+    if (dayData && dayData.items) {
+        dayData.items.forEach(item => {
+            if (!catDataMap[item.category]) catDataMap[item.category] = { total: 0, notes: [] };
+            catDataMap[item.category].total += item.usdAmount;
+            if (item.note) catDataMap[item.category].notes.push(item.note);
+        });
+    }
+
+    categories.forEach(cat => {
+        const itemObj = catDataMap[cat];
+        const itemTotal = itemObj ? itemObj.total : 0;
+        const notes = itemObj ? itemObj.notes : [];
+        const displayName = cat.charAt(0).toUpperCase() + cat.slice(1);
+
         const itemDiv = document.createElement('div');
         itemDiv.className = 'history-item';
+        if (itemTotal === 0) itemDiv.classList.add('empty-category-row');
+
         let innerHTML = `
             <div class="hist-main">
-                <span class="hist-cat">${icons[item.category] || '💰'} ${item.category}</span>
-                <span class="hist-amt">${CURRENCY_SYMBOLS[state.homeCurrency]}${item.usdAmount.toFixed(2)}</span>
+                <span class="hist-cat">${icons[cat] || '💰'} ${displayName}</span>
+                <span class="hist-amt">${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${itemTotal.toFixed(2)}</span>
             </div>
         `;
-        if (item.note) {
-            innerHTML += `<div class="hist-note">"${item.note}"</div>`;
-        }
+        
+        notes.forEach(note => {
+            innerHTML += `<div class="hist-note">"${note}"</div>`;
+        });
+
         itemDiv.innerHTML = innerHTML;
         list.appendChild(itemDiv);
     });
