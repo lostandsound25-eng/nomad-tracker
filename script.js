@@ -577,17 +577,37 @@ function openAuditModal() {
     modal.classList.add('active');
 
     if (state.history.length === 0) {
-        content.innerHTML = '<p>No data to analyze.</p>';
+        content.innerHTML = '<tbody><tr><td colspan="4" style="text-align:center; padding: 2rem;">No data to analyze.</td></tr></tbody>';
         return;
     }
 
-    let html = '';
-    state.history.forEach((h, i) => {
-        html += `<div class="raw-row">
-            [${i}] <strong>${new Date(h.date).toLocaleDateString()}</strong> | 
-            ${h.category}: <strong>$${h.usdAmount.toFixed(2)}</strong> 
-        </div>`;
+    let html = `
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Note</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    state.history.forEach(h => {
+        // Extract local YYYY-MM-DD from the stored ISO
+        const localDate = new Date(h.date).toLocaleDateString();
+        const displayCat = h.category.charAt(0).toUpperCase() + h.category.slice(1);
+        const homeAmt = `${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${h.usdAmount.toFixed(2)}`;
+        
+        html += `<tr>
+            <td>${localDate}</td>
+            <td>${displayCat}</td>
+            <td><strong>${homeAmt}</strong></td>
+            <td class="table-note">${h.note || ''}</td>
+        </tr>`;
     });
+    
+    html += '</tbody>';
     content.innerHTML = html;
 }
 

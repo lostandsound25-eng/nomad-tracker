@@ -169,6 +169,43 @@
                         <p class="empty-detail">Tap a day above to see breakdown</p>
                     </div>
                 </div>
+
+                <!-- Sync & Audit Section -->
+                <div class="sync-audit-card">
+                    <div class="sync-header">
+                        <h3>Cloud Backup</h3>
+                        <p id="sync-status">Not connected</p>
+                    </div>
+                    <div class="sync-input-group">
+                        <input type="text" id="sheets-url" placeholder="Apps Script URL..." class="subtle-input">
+                        <button id="save-sync-url" class="sync-save-btn">Link</button>
+                    </div>
+                    
+                    <div class="audit-actions">
+                        <button id="view-raw" class="audit-btn">
+                            <span>📋</span> Export Data
+                        </button>
+                        <button id="clear-data" class="danger-icon-btn" title="Wipe Local Data">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Raw Data Modal -->
+                <div id="raw-modal" class="modal-overlay">
+                    <div class="modal-content export-modal">
+                        <header class="export-header">
+                            <h2>Export to Long Format</h2>
+                            <button onclick="closeModal()" class="close-btn">&times;</button>
+                        </header>
+                        <p class="export-help">Copy the rows below and paste them into your Google Sheet to maintain your Long Format records.</p>
+                        <div class="table-container">
+                            <table class="export-table" id="raw-log-content">
+                                <!-- Populated via JS -->
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- DASHBOARD TAB -->
@@ -219,35 +256,8 @@
                     </div>
                 </div>
 
-                <div class="import-section">
-                    <div class="sync-config">
-                        <h3>Connect to Google Sheets</h3>
-                        <div class="sync-input-group">
-                            <input type="text" id="sheets-url" placeholder="Paste Apps Script Web App URL here..."
-                                class="sync-input">
-                            <button id="save-sync-url" class="sync-save-btn">Save Connection</button>
-                        </div>
-                        <p class="sync-status" id="sync-status">Ready to connect</p>
-                    </div>
-
-                    <div class="import-actions">
-                        <button id="clear-data" class="danger-btn" style="width: 100%;">Wipe Local Cache (Tap
-                            Twice)</button>
-                    </div>
-                    <button id="view-raw" class="link-btn">View Log Audit</button>
-                    <p class="import-help">The Google Sheet is now the primary source of truth.</p>
                 </div>
 
-                <!-- Raw Data Modal (Hidden by default) -->
-                <div id="raw-modal" class="modal">
-                    <div class="modal-content">
-                        <header>
-                            <h2>Raw Audit Log</h2>
-                            <button onclick="closeModal()">✕</button>
-                        </header>
-                        <div id="raw-log-content"></div>
-                    </div>
-                </div>
             </section>
         </main>
     </div>
