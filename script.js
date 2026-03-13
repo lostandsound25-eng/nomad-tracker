@@ -323,9 +323,41 @@ function processSheetsData(grid) {
 // --- Logic ---
 
 function autoScaleInput() {
-    const val = els.localInput.value || '0';
-    // Dynamically adjust the width of the input based on text length
-    els.localInput.style.width = (val.length + 1) + 'ch';
+    let val = els.localInput.value.replace(/,/g, '');
+    
+    // Only allow numbers and one decimal point
+    val = val.replace(/[^0-9.]/g, ''); 
+    const parts = val.split('.');
+    if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+    
+    // Format with commas
+    let displayVal = val;
+    if (val !== '') {
+        const numPart = parts[0];
+        const decimalPart = parts.length > 1 ? '.' + parts[1].substring(0, 2) : '';
+        displayVal = parseInt(numPart || 0).toLocaleString('en-US') + decimalPart;
+        
+        // Handle the case where user just typed a dot
+        if (val.endsWith('.') && !displayVal.includes('.')) displayVal += '.';
+        // Handle leading zeros
+        if (val === '0' || val === '0.') displayVal = val;
+    }
+
+    els.localInput.value = displayVal;
+
+    // --- Font Scaling Logic ---
+    const len = displayVal.length || 1;
+    let fontSize = 4; // Base 4rem
+    
+    if (len > 8) fontSize = 3;
+    if (len > 12) fontSize = 2.2;
+    if (len > 16) fontSize = 1.8;
+    
+    els.localInput.style.fontSize = fontSize + 'rem';
+    els.symbol.style.fontSize = Math.max(fontSize * 0.4, 1.2) + 'rem';
+    
+    // Width logic
+    els.localInput.style.width = (len + 1) + 'ch';
 }
 
 async function updateFxRate() {
@@ -356,13 +388,15 @@ async function updateFxRate() {
 }
 
 function calculateHomeValue() {
-    const localVal = parseFloat(els.localInput.value) || 0;
+    const rawVal = els.localInput.value.replace(/,/g, '');
+    const localVal = parseFloat(rawVal) || 0;
     const homeVal = localVal * state.fxRateToHome;
     els.usdOutput.innerText = homeVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function saveExpense() {
-    const amount = parseFloat(els.localInput.value);
+    const rawVal = els.localInput.value.replace(/,/g, '');
+    const amount = parseFloat(rawVal);
     const customDate = document.getElementById('expense-date').value;
 
     if (!amount || !state.selectedCategory || !customDate) {
@@ -390,6 +424,8 @@ function saveExpense() {
     // Reset UI
     els.localInput.value = '';
     els.localInput.style.width = '1ch'; // Reset scaler
+    els.localInput.style.fontSize = '4rem'; // Reset font size
+    els.symbol.style.fontSize = '1.5rem'; // Reset symbol size
     els.usdOutput.innerText = '0.00';
     els.notesInput.value = '';
     els.catBtns.forEach(b => b.classList.remove('selected'));
