@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nomad Tracker | Insights & Entry</title>
+    <meta name="description" content="Detailed expense tracking and analytics for digital nomads.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Main Navigation Tabs -->
+        <nav class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('log')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                </svg>
+                <span>Add</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('history')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3v18h18" />
+                    <path d="m19 9-5 5-4-4-3 3" />
+                </svg>
+                <span>Log</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('dash')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+                    <path d="M22 12A10 10 0 0 0 12 2v10z" />
+                </svg>
+                <span>Insights</span>
+            </button>
+        </nav>
+
+        <main class="content">
+            <!-- LOG EXPENSE TAB -->
+            <section id="tab-log" class="tab-content active">
+                <header class="section-header">
+                    <h1>Add Expense</h1>
+                    <div class="date-selector-wrapper">
+                        <span class="today-label">Date:</span>
+                        <input type="date" id="expense-date" class="date-input">
+                    </div>
+                </header>
+
+                <div class="entry-card">
+                    <div class="currency-row">
+                        <select id="local-currency" class="currency-select">
+                            <option value="USD">USD (US Dollar)</option>
+                            <option value="IDR">IDR (Indonesian Rupiah)</option>
+                            <option value="THB">THB (Thai Baht)</option>
+                            <option value="VND">VND (Vietnamese Dong)</option>
+                            <option value="LAK">LAK (Laotian Kip)</option>
+                            <option value="KHR">KHR (Cambodian Riel)</option>
+                            <option value="EUR">EUR (Euro)</option>
+                            <option value="JPY">JPY (Japanese Yen)</option>
+                            <option value="GBP">GBP (British Pound)</option>
+                        </select>
+                        <div class="conversion-indicator">
+                            <span class="rate-label">Rate:</span>
+                            <span id="fx-rate">Fetching...</span>
+                        </div>
+                    </div>
+
+                    <div class="amount-input-wrapper">
+                        <span class="currency-symbol" id="active-symbol">Rp</span>
+                        <input type="number" id="local-amount" placeholder="0.00" inputmode="decimal" autofocus>
+                    </div>
+
+                    <div class="usd-preview">
+                        ≈ <span id="usd-amount">0.00</span> <span class="usd-label">USD</span>
+                    </div>
+
+                    <div class="category-grid">
+                        <button class="cat-btn" data-category="accommodation">
+                            <span class="icon">🏠</span>
+                            <span>Stay</span>
+                        </button>
+                        <button class="cat-btn" data-category="breakfast">
+                            <span class="icon">☕</span>
+                            <span>B-fast</span>
+                        </button>
+                        <button class="cat-btn" data-category="lunch">
+                            <span class="icon">🥪</span>
+                            <span>Lunch</span>
+                        </button>
+                        <button class="cat-btn" data-category="dinner">
+                            <span class="icon">🍲</span>
+                            <span>Dinner</span>
+                        </button>
+                        <button class="cat-btn" data-category="transportation">
+                            <span class="icon">🛵</span>
+                            <span>Transport</span>
+                        </button>
+                        <button class="cat-btn" data-category="miscellaneous">
+                            <span class="icon">✨</span>
+                            <span>Misc</span>
+                        </button>
+                    </div>
+
+                    <button id="save-expense" class="save-btn">Save to Log</button>
+                </div>
+            </section>
+
+            <!-- LOG/HISTORY TAB (Calendar View) -->
+            <section id="tab-history" class="tab-content">
+                <div class="history-header">
+                    <h2>Spending Log</h2>
+                    <div class="ledger-actions">
+                        <button id="fetch-sheets" class="ghost-btn">Fetch History</button>
+                    </div>
+                </div>
+
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <button id="prev-month" class="cal-nav">&lt;</button>
+                        <h3 id="calendar-month-year">March 2026</h3>
+                        <button id="next-month" class="cal-nav">&gt;</button>
+                    </div>
+                    <div class="calendar-grid-header">
+                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                    </div>
+                    <div id="calendar-body" class="calendar-grid">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <div id="day-detail-panel" class="day-detail-panel">
+                    <div class="detail-header">
+                        <h4 id="detail-date">Select a day</h4>
+                        <button id="close-detail" class="close-btn">&times;</button>
+                    </div>
+                    <div id="detail-items" class="detail-items">
+                        <p class="empty-detail">Tap a day above to see breakdown</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DASHBOARD TAB -->
+            <section id="tab-dash" class="tab-content">
+                <header class="section-header">
+                    <h1>Insights</h1>
+                    <p>Google Sheets Connected Dashboard</p>
+                </header>
+
+                <div class="analytics-grid">
+                    <div class="analytics-card main">
+                        <span class="label">Daily Average</span>
+                        <span class="value" id="dash-avg">$0.00</span>
+                    </div>
+                    <div class="analytics-card">
+                        <span class="label">Days Tracked</span>
+                        <span class="value" id="dash-days">0</span>
+                    </div>
+                    <div class="analytics-card">
+                        <span class="label">Total Spent</span>
+                        <span class="value" id="dash-total">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="projections-card">
+                    <h3>Future Projections</h3>
+                    <div class="projection-row">
+                        <span>30-Day Outlook</span>
+                        <strong id="proj-month">$0.00</strong>
+                    </div>
+                    <div class="projection-row secondary">
+                        <span>90-Day Outlook</span>
+                        <strong id="proj-quarter">$0.00</strong>
+                    </div>
+                </div>
+
+                <div class="category-breakdown-card">
+                    <h3>Spending by Category</h3>
+                    <div class="donut-chart-container">
+                        <canvas id="category-donut"></canvas>
+                        <div id="donut-center" class="donut-center">
+                            <span class="total-label">Total</span>
+                            <span id="donut-total-val" class="total-val">$0</span>
+                        </div>
+                    </div>
+                    <div id="category-stats" class="category-stats">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <div class="import-section">
+                    <div class="sync-config">
+                        <h3>Connect to Google Sheets</h3>
+                        <div class="sync-input-group">
+                            <input type="text" id="sheets-url" placeholder="Paste Apps Script Web App URL here..."
+                                class="sync-input">
+                            <button id="save-sync-url" class="sync-save-btn">Save Connection</button>
+                        </div>
+                        <p class="sync-status" id="sync-status">Ready to connect</p>
+                    </div>
+
+                    <div class="import-actions">
+                        <button id="clear-data" class="danger-btn" style="width: 100%;">Wipe Local Cache (Tap
+                            Twice)</button>
+                    </div>
+                    <button id="view-raw" class="link-btn">View Log Audit</button>
+                    <p class="import-help">The Google Sheet is now the primary source of truth.</p>
+                </div>
+
+                <!-- Raw Data Modal (Hidden by default) -->
+                <div id="raw-modal" class="modal">
+                    <div class="modal-content">
+                        <header>
+                            <h2>Raw Audit Log</h2>
+                            <button onclick="closeModal()">✕</button>
+                        </header>
+                        <div id="raw-log-content"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- CSV Parser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Chart.js for Donut -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Script -->
+    <script src="script.js"></script>
+</body>
+
+</html>
