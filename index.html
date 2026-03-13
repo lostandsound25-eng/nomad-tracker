@@ -61,28 +61,27 @@
                             <label>Spending</label>
                             <select id="local-currency" class="currency-select">
                                 <option value="USD">USD ($)</option>
+                                <option value="EUR">EUR (€)</option>
+                                <option value="GBP">GBP (£)</option>
                                 <option value="IDR">IDR (Rp)</option>
                                 <option value="THB">THB (฿)</option>
                                 <option value="VND">VND (₫)</option>
                                 <option value="LAK">LAK (₭)</option>
                                 <option value="KHR">KHR (៛)</option>
-                                <option value="EUR">EUR (€)</option>
+                                <option value="MXN">MXN ($)</option>
                                 <option value="JPY">JPY (¥)</option>
-                                <option value="GBP">GBP (£)</option>
+                                <option value="OTHER_SPEND">🔍 Other...</option>
                             </select>
                         </div>
                         <div class="currency-col">
                             <label>Home</label>
                             <select id="home-currency" class="currency-select">
                                 <option value="USD">USD ($)</option>
-                                <option value="IDR">IDR (Rp)</option>
-                                <option value="THB">THB (฿)</option>
-                                <option value="VND">VND (₫)</option>
-                                <option value="LAK">LAK (₭)</option>
-                                <option value="KHR">KHR (៛)</option>
                                 <option value="EUR">EUR (€)</option>
-                                <option value="JPY">JPY (¥)</option>
                                 <option value="GBP">GBP (£)</option>
+                                <option value="AUD">AUD ($)</option>
+                                <option value="CAD">CAD ($)</option>
+                                <option value="OTHER_HOME">🔍 Other...</option>
                             </select>
                         </div>
                     </div>
@@ -251,6 +250,18 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- Currency Modal Overlay -->
+    <div id="currency-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Search Currency</h3>
+            <input type="text" id="currency-search-input" class="currency-search-input" placeholder="e.g., CAD, Mexican Peso...">
+            <div id="currency-list" class="currency-list">
+                <!-- Populated via JS -->
+            </div>
+            <button id="close-currency-modal" class="ghost-btn" style="width: 100%; border-color: var(--border); color: var(--text);">Cancel</button>
+        </div>
     </div>
 
     <!-- CSV Parser -->

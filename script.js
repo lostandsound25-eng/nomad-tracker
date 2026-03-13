@@ -43,6 +43,20 @@ const CURRENCY_SYMBOLS = {
     GBP: '£'
 };
 
+const ALL_CURRENCIES = {
+    USD: 'US Dollar', EUR: 'Euro', GBP: 'British Pound', 
+    AUD: 'Australian Dollar', CAD: 'Canadian Dollar',
+    IDR: 'Indonesian Rupiah', THB: 'Thai Baht', VND: 'Vietnamese Dong', 
+    LAK: 'Lao Kip', KHR: 'Cambodian Riel', JPY: 'Japanese Yen',
+    MXN: 'Mexican Peso', SGD: 'Singapore Dollar', CHF: 'Swiss Franc', 
+    INR: 'Indian Rupee', CNY: 'Chinese Yuan', ZAR: 'South African Rand', 
+    NZD: 'New Zealand Dollar', HKD: 'Hong Kong Dollar', MYR: 'Malaysian Ringgit',
+    PHP: 'Philippine Peso', KRW: 'South Korean Won', BRL: 'Brazilian Real', 
+    RUB: 'Russian Ruble', TRY: 'Turkish Lira', AED: 'UAE Dirham', 
+    COP: 'Colombian Peso', ARS: 'Argentine Peso', CLP: 'Chilean Peso',
+    PEN: 'Peruvian Sol', DKK: 'Danish Krone', SEK: 'Swedish Krona', NOK: 'Norwegian Krone'
+};
+
 // UI Elements
 let els = {};
 let categoryChart = null;
@@ -86,10 +100,14 @@ function init() {
         }
     });
 
+    // Ensure pre-selected currencies exist in dropdowns
+    ensureOptionExists(els.spendingSelect, state.spendingCurrency);
+    ensureOptionExists(els.homeSelect, state.homeCurrency);
+
     // Initial Select Setup
     els.spendingSelect.value = state.spendingCurrency;
     els.homeSelect.value = state.homeCurrency;
-    els.symbol.innerText = CURRENCY_SYMBOLS[state.spendingCurrency];
+    els.symbol.innerText = CURRENCY_SYMBOLS[state.spendingCurrency] || state.spendingCurrency;
     els.homeLabel.innerText = state.homeCurrency;
     autoScaleInput();
 
@@ -97,16 +115,29 @@ function init() {
     updateFxRate();
     updateDashboard();
 
+    let preSelectSpend = state.spendingCurrency;
+    let preSelectHome = state.homeCurrency;
+
     // Event Listeners
     els.spendingSelect.addEventListener('change', (e) => {
+        if (e.target.value === 'OTHER_SPEND') {
+            openCurrencyModal('spending');
+            return;
+        }
+        preSelectSpend = e.target.value;
         state.spendingCurrency = e.target.value;
         localStorage.setItem('nomad_last_spending_currency', state.spendingCurrency);
-        els.symbol.innerText = CURRENCY_SYMBOLS[state.spendingCurrency];
+        els.symbol.innerText = CURRENCY_SYMBOLS[state.spendingCurrency] || state.spendingCurrency;
         updateFxRate();
         calculateHomeValue();
     });
 
     els.homeSelect.addEventListener('change', (e) => {
+        if (e.target.value === 'OTHER_HOME') {
+            openCurrencyModal('home');
+            return;
+        }
+        preSelectHome = e.target.value;
         state.homeCurrency = e.target.value;
         localStorage.setItem('nomad_home_currency', state.homeCurrency);
         els.homeLabel.innerText = state.homeCurrency;
@@ -320,6 +351,85 @@ function processSheetsData(grid) {
     updateDashboard();
 }
 
+// --- Modal Logic ---
+let currentCurrencyTarget = null;
+const currencyModal = document.getElementById('currency-modal');
+const currencySearchInput = document.getElementById('currency-search-input');
+const currencyListEl = document.getElementById('currency-list');
+const closeCurrencyModalBtn = document.getElementById('close-currency-modal');
+
+if (currencySearchInput) {
+    currencySearchInput.addEventListener('input', (e) => renderCurrencyList(e.target.value));
+    closeCurrencyModalBtn.addEventListener('click', closeCurrencyModal);
+}
+
+function renderCurrencyList(filterText = '') {
+    if (!currencyListEl) return;
+    currencyListEl.innerHTML = '';
+    const term = filterText.toLowerCase();
+    
+    Object.keys(ALL_CURRENCIES).forEach(code => {
+        const name = ALL_CURRENCIES[code];
+        if (code.toLowerCase().includes(term) || name.toLowerCase().includes(term)) {
+            const item = document.createElement('div');
+            item.className = 'currency-list-item';
+            item.innerHTML = `<span>${code}</span><span>${name}</span>`;
+            item.onclick = () => selectCurrencyFromModal(code);
+            currencyListEl.appendChild(item);
+        }
+    });
+}
+
+function openCurrencyModal(target) {
+    currentCurrencyTarget = target;
+    currencyModal.classList.add('active');
+    currencySearchInput.value = '';
+    renderCurrencyList('');
+    setTimeout(() => currencySearchInput.focus(), 100);
+}
+
+function closeCurrencyModal() {
+    currencyModal.classList.remove('active');
+    // Revert select if "Other..." is still selected
+    if (currentCurrencyTarget === 'spending' && els.spendingSelect.value === 'OTHER_SPEND') {
+        els.spendingSelect.value = state.spendingCurrency; // revert strictly
+    }
+    if (currentCurrencyTarget === 'home' && els.homeSelect.value === 'OTHER_HOME') {
+        els.homeSelect.value = state.homeCurrency;
+    }
+}
+
+function selectCurrencyFromModal(code) {
+    if (currentCurrencyTarget === 'spending') {
+        ensureOptionExists(els.spendingSelect, code);
+        els.spendingSelect.value = code;
+        state.spendingCurrency = code;
+        localStorage.setItem('nomad_last_spending_currency', state.spendingCurrency);
+        els.symbol.innerText = CURRENCY_SYMBOLS[state.spendingCurrency] || code;
+    } else {
+        ensureOptionExists(els.homeSelect, code);
+        els.homeSelect.value = code;
+        state.homeCurrency = code;
+        localStorage.setItem('nomad_home_currency', state.homeCurrency);
+        els.homeLabel.innerText = state.homeCurrency;
+    }
+    
+    updateFxRate();
+    calculateHomeValue();
+    closeCurrencyModal();
+}
+
+function ensureOptionExists(selectEl, code) {
+    if (!selectEl) return;
+    if (!Array.from(selectEl.options).some(opt => opt.value === code)) {
+        const opt = document.createElement('option');
+        opt.value = code;
+        opt.innerText = `${code} (${CURRENCY_SYMBOLS[code] || '$'})`;
+        // Insert right before the last "Other..." option
+        selectEl.insertBefore(opt, selectEl.lastElementChild);
+    }
+}
+
 // --- Logic ---
 
 function autoScaleInput() {
@@ -429,7 +539,7 @@ function saveExpense() {
         localAmount: amount,
         currency: state.spendingCurrency,
         usdAmount: amount * state.fxRateToHome,
-        symbol: CURRENCY_SYMBOLS[state.spendingCurrency],
+        symbol: CURRENCY_SYMBOLS[state.spendingCurrency] || state.spendingCurrency,
         note: els.notesInput.value.trim()
     };
 
