@@ -219,14 +219,15 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 0.5rem;
-    height: 80px;
+    margin: 1.5rem 0;
+    min-height: 100px;
+    width: 100%;
 }
 
 .amount-scaler {
-    display: flex;
+    display: inline-flex;
     align-items: baseline;
-    position: relative;
+    justify-content: center;
 }
 
 #local-amount {
@@ -236,12 +237,12 @@ body {
     font-size: 4rem;
     font-weight: 800;
     width: auto;
-    max-width: 250px;
     text-align: left;
     outline: none;
     padding: 0;
     margin: 0;
-    caret-color: transparent; /* Remove clunky terminal cursor */
+    caret-color: transparent;
+    transition: font-size 0.2s ease;
 }
 
 #local-amount:focus {
@@ -253,7 +254,7 @@ body {
     color: var(--text-dim);
     font-weight: 600;
     margin-right: 8px;
-    transition: all 0.1s ease;
+    transition: all 0.2s ease;
 }
 
 .usd-preview {

@@ -323,41 +323,59 @@ function processSheetsData(grid) {
 // --- Logic ---
 
 function autoScaleInput() {
-    let val = els.localInput.value.replace(/,/g, '');
+    let rawVal = els.localInput.value.replace(/,/g, '');
     
     // Only allow numbers and one decimal point
-    val = val.replace(/[^0-9.]/g, ''); 
-    const parts = val.split('.');
-    if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+    rawVal = rawVal.replace(/[^0-9.]/g, ''); 
+    const parts = rawVal.split('.');
+    if (parts.length > 2) rawVal = parts[0] + '.' + parts.slice(1).join('');
     
+    // 1 Trillion Limit (1,000,000,000,000)
+    if (parseFloat(rawVal) > 1000000000000) {
+        alert("Maximum digits exceeded.");
+        rawVal = "1000000000000";
+    }
+
     // Format with commas
-    let displayVal = val;
-    if (val !== '') {
+    let displayVal = rawVal;
+    if (rawVal !== '') {
         const numPart = parts[0];
         const decimalPart = parts.length > 1 ? '.' + parts[1].substring(0, 2) : '';
         displayVal = parseInt(numPart || 0).toLocaleString('en-US') + decimalPart;
         
-        // Handle the case where user just typed a dot
-        if (val.endsWith('.') && !displayVal.includes('.')) displayVal += '.';
-        // Handle leading zeros
-        if (val === '0' || val === '0.') displayVal = val;
+        if (rawVal.endsWith('.') && !displayVal.includes('.')) displayVal += '.';
+        if (rawVal === '0' || rawVal === '0.') displayVal = rawVal;
     }
 
     els.localInput.value = displayVal;
 
-    // --- Font Scaling Logic ---
+    // --- Aggressive Font Scaling ---
     const len = displayVal.length || 1;
-    let fontSize = 4; // Base 4rem
+    let fontSize = 4; // Starting size
     
-    if (len > 8) fontSize = 3;
-    if (len > 12) fontSize = 2.2;
-    if (len > 16) fontSize = 1.8;
+    if (len > 6) fontSize = 3.5;
+    if (len > 9) fontSize = 2.8;
+    if (len > 12) fontSize = 2.0;
+    if (len > 15) fontSize = 1.6;
+    if (len > 18) fontSize = 1.2; // The absolute floor for 1 trillion + decimals
     
     els.localInput.style.fontSize = fontSize + 'rem';
-    els.symbol.style.fontSize = Math.max(fontSize * 0.4, 1.2) + 'rem';
+    els.symbol.style.fontSize = Math.max(fontSize * 0.4, 1.1) + 'rem';
     
-    // Width logic
-    els.localInput.style.width = (len + 1) + 'ch';
+    // Dynamic Width Calculation to keep it centered
+    // We use a temporary span to measure exact pixel width for better centering
+    const tempSpan = document.createElement('span');
+    tempSpan.style.visibility = 'hidden';
+    tempSpan.style.position = 'absolute';
+    tempSpan.style.fontSize = fontSize + 'rem';
+    tempSpan.style.fontWeight = '800';
+    tempSpan.style.fontFamily = 'inherit';
+    tempSpan.innerText = displayVal || '0';
+    document.body.appendChild(tempSpan);
+    const textWidth = tempSpan.offsetWidth;
+    document.body.removeChild(tempSpan);
+    
+    els.localInput.style.width = (textWidth + 5) + 'px'; 
 }
 
 async function updateFxRate() {
@@ -372,11 +390,11 @@ async function updateFxRate() {
     try {
         const response = await fetch(`https://open.er-api.com/v6/latest/${state.homeCurrency}`);
         const data = await response.json();
-        
+
         // We want the rate relative to the Home currency
         const rateToHome = 1 / data.rates[state.spendingCurrency];
         state.fxRateToHome = rateToHome;
-        
+
         els.rateBanner.innerText = `1 ${state.spendingCurrency} ≈ ${rateToHome.toFixed(4)} ${state.homeCurrency}`;
         calculateHomeValue();
     } catch (err) {
