@@ -6,8 +6,20 @@ const state = {
     selectedCategory: null,
     history: JSON.parse(localStorage.getItem('nomad_history') || '[]'),
     calMonth: new Date().getMonth(),
-    calYear: new Date().getFullYear()
+    calYear: new Date().getFullYear(),
+    isFirstLoad: true
 };
+
+// Sample data to make the app look alive if empty
+const SAMPLE_DATA = [
+    { id: 's1', date: new Date().toISOString(), category: 'accommodation', localAmount: 45, currency: 'USD', usdAmount: 45, symbol: '$' },
+    { id: 's2', date: new Date().toISOString(), category: 'dinner', localAmount: 12, currency: 'USD', usdAmount: 12, symbol: '$' },
+    { id: 's3', date: new Date(Date.now() - 86400000).toISOString(), category: 'transportation', localAmount: 8, currency: 'USD', usdAmount: 8, symbol: '$' }
+];
+
+if (state.history.length === 0) {
+    state.history = [...SAMPLE_DATA];
+}
 
 // Utils
 function getLocalYYYYMMDD(date = new Date()) {
@@ -176,6 +188,11 @@ function init() {
 
     renderHistory();
     updateDashboard();
+
+    // Auto-fetch if we have a URL saved
+    if (localStorage.getItem('nomad_sheets_url')) {
+        fetchHistoryFromSheets(true); // pass true for 'silent' loading
+    }
 }
 
 function changeMonth(delta) {
@@ -192,10 +209,10 @@ function changeMonth(delta) {
 
 // --- Sheets Data Flow ---
 
-async function fetchHistoryFromSheets() {
+async function fetchHistoryFromSheets(silent = false) {
     const url = localStorage.getItem('nomad_sheets_url');
     if (!url) {
-        alert("Please connect to Google Sheets in the Insights tab first!");
+        if (!silent) alert("Please connect to Google Sheets in the Insights tab first!");
         return;
     }
 
