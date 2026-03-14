@@ -353,17 +353,50 @@ function init() {
         tripModal.classList.remove('active');
     });
 
-    document.getElementById('btn-add-trip-new').addEventListener('click', async () => {
-        const name = prompt("Trip Name:");
-        if (name) {
-            const { data, error } = await sb.from('trips').insert([
-                { name, daily_budget: state.dailyBudget, home_currency: state.homeCurrency, created_by: state.user.id }
-            ]).select();
-            if (data) {
-                await sb.from('trip_members').insert([{ trip_id: data[0].id, user_id: state.user.id, role: 'owner' }]);
-                fetchUserTrips();
-                tripModal.classList.remove('active');
-            }
+    // New Trip Modal Listeners
+    const newTripModal = document.getElementById('new-trip-modal');
+    document.getElementById('open-new-trip-modal-btn').addEventListener('click', () => {
+        tripModal.classList.remove('active');
+        newTripModal.classList.add('active');
+    });
+
+    document.getElementById('close-new-new-trip-modal')?.addEventListener('click', () => {
+        newTripModal.classList.remove('active');
+    });
+    // The close button ID was close-new-trip-modal in HTML
+    document.getElementById('close-new-trip-modal').addEventListener('click', () => {
+        newTripModal.classList.remove('active');
+    });
+
+    document.getElementById('btn-create-trip-confirm').addEventListener('click', async () => {
+        const name = document.getElementById('new-trip-name').value.trim();
+        const homeCurrency = document.getElementById('new-trip-home-currency').value;
+        const dailyBudget = parseFloat(document.getElementById('new-trip-budget').value) || 50;
+
+        if (!name) {
+            alert("Please give your trip a name!");
+            return;
+        }
+
+        const { data, error } = await sb.from('trips').insert([
+            { name, daily_budget: dailyBudget, home_currency: homeCurrency, created_by: state.user.id }
+        ]).select();
+
+        if (error) {
+            alert("Failed to create trip: " + error.message);
+            return;
+        }
+
+        if (data && data.length > 0) {
+            await sb.from('trip_members').insert([{ trip_id: data[0].id, user_id: state.user.id, role: 'owner' }]);
+            await fetchUserTrips();
+            // Find the newly created trip and set it active
+            const newTrip = state.trips.find(t => t.id === data[0].id);
+            if (newTrip) setActiveTrip(newTrip);
+            
+            newTripModal.classList.remove('active');
+            // Clear inputs
+            document.getElementById('new-trip-name').value = '';
         }
     });
 
@@ -440,7 +473,13 @@ async function fetchUserTrips() {
     state.trips = data;
     if (data.length > 0) {
         els.tripSelector.innerHTML = data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-        if (!state.currentTrip) setActiveTrip(data[0]);
+        // If we don't have a current trip yet, or if the current trip isn't in the new list, set active to the first one
+        if (!state.currentTrip || !data.find(t => t.id === state.currentTrip.id)) {
+            setActiveTrip(data[0]);
+        } else {
+            // Keep current trip but sync dropdown
+            els.tripSelector.value = state.currentTrip.id;
+        }
     } else {
         createDemoTrip();
     }

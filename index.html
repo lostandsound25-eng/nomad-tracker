@@ -275,13 +275,11 @@
                 </header>
 
                 <div class="settings-card">
-                    <h3>Current Trip</h3>
+                    <h3>Switch Active Trip</h3>
                     <div class="trip-selector-row">
                         <select id="trip-selector" class="currency-select">
-                            <option value="demo-1">Paris 2026 (Active)</option>
-                            <option value="demo-2">Bali Memories 2025</option>
+                            <!-- Populated via JS -->
                         </select>
-                        <button class="ghost-btn" style="padding: 10px; border-radius: 10px; font-weight: 700;">+ New</button>
                     </div>
                 </div>
 
@@ -395,17 +393,53 @@
         </div>
     </div>
 
+    <!-- New Trip Modal -->
+    <div id="new-trip-modal" class="modal-overlay">
+        <div class="modal-content select-modal">
+            <header class="modal-header-sleek">
+                <h3>Plan New Trip</h3>
+                <button id="close-new-trip-modal" class="close-btn">&times;</button>
+            </header>
+            
+            <div class="new-trip-form">
+                <div class="input-group">
+                    <label>Trip Name</label>
+                    <input type="text" id="new-trip-name" placeholder="e.g., Southeast Asia 2026">
+                </div>
+                
+                <div class="settings-row" style="margin-top: 1rem;">
+                    <div class="currency-col">
+                        <label>Home Currency</label>
+                        <select id="new-trip-home-currency" class="currency-select">
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="AUD">AUD ($)</option>
+                            <option value="CAD">CAD ($)</option>
+                        </select>
+                    </div>
+                    <div class="currency-col">
+                        <label>Daily Budget</label>
+                        <input type="number" id="new-trip-budget" class="subtle-input" style="background: var(--bg); border: 1px solid var(--border);" placeholder="50">
+                    </div>
+                </div>
+
+                <button id="btn-create-trip-confirm" class="save-btn" style="margin-top: 1.5rem;">Initialize Trip</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Trip Selector Modal -->
     <div id="trip-modal" class="modal-overlay">
         <div class="modal-content select-modal">
             <header class="modal-header-sleek">
-                <h3>Switch Trip</h3>
+                <h3>Your Trips</h3>
                 <button id="close-trip-modal" class="close-btn">&times;</button>
             </header>
             <div id="trip-list-menu" class="trip-menu-list">
                 <!-- Populated via JS -->
             </div>
-            <button id="btn-add-trip-new" class="save-btn secondary">+ Create New Trip</button>
+            <button id="open-new-trip-modal-btn" class="save-btn secondary">+ Plan New Trip</button>
         </div>
     </div>
 
