@@ -40,7 +40,7 @@
                     <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
                     <path d="M22 12A10 10 0 0 0 12 2v10z" />
                 </svg>
-                <span>Insights</span>
+                <span>Dashboard</span>
             </button>
         </nav>
 
@@ -55,10 +55,29 @@
                     </div>
                 </header>
 
+                <div class="daily-progress-card">
+                    <div class="progress-labels">
+                        <span class="spent-label">Spent today: <strong id="today-spent">$0.00</strong></span>
+                        <div class="progress-toggle-wrap" id="progress-toggle-btn" title="Toggle Currency">
+                            <span class="remaining-label">Remaining: <strong id="today-remaining">$0.00</strong></span>
+                            <div class="glass-icon-btn">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17 2.1l4 4-4 4"/>
+                                    <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4"/>
+                                    <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="progress-bar-bg-large">
+                        <div id="today-progress-fill" class="progress-bar-fill-large"></div>
+                    </div>
+                </div>
+
                 <div class="entry-card">
                     <div class="currency-settings">
                         <div class="currency-col">
-                            <label>Spending</label>
+                            <label>Spending Currency</label>
                             <select id="local-currency" class="currency-select">
                                 <option value="USD">USD ($)</option>
                                 <option value="EUR">EUR (€)</option>
@@ -73,22 +92,9 @@
                                 <option value="OTHER_SPEND">🔍 Other...</option>
                             </select>
                         </div>
-                        <div class="currency-col">
-                            <label>Home</label>
-                            <select id="home-currency" class="currency-select">
-                                <option value="USD">USD ($)</option>
-                                <option value="EUR">EUR (€)</option>
-                                <option value="GBP">GBP (£)</option>
-                                <option value="AUD">AUD ($)</option>
-                                <option value="CAD">CAD ($)</option>
-                                <option value="OTHER_HOME">🔍 Other...</option>
-                            </select>
-                        </div>
                     </div>
 
-                    <div class="fx-banner">
-                        <span id="fx-rate">1 spent ≈ 1 home</span>
-                    </div>
+
 
                     <div class="amount-container">
                         <div id="amount-scaler" class="amount-scaler">
@@ -100,6 +106,7 @@
 
                     <div class="usd-preview">
                         ≈ <span id="usd-amount">0.00</span> <span id="home-symbol-label">USD</span>
+                        <div class="fx-rate-subtext" id="fx-rate" style="font-size: 0.75rem; color: var(--text-dim); margin-top: 6px;">1 spent ≈ 1 home</div>
                     </div>
 
                     <div class="notes-wrapper">
@@ -177,14 +184,16 @@
                         <input type="text" id="sheets-url" placeholder="Apps Script URL..." class="subtle-input">
                         <button id="save-sync-url" class="sync-save-btn">Link</button>
                     </div>
-                    
+
                     <div class="audit-actions" style="margin-bottom: 1.5rem;">
                         <button id="fetch-sheets" class="audit-btn">
                             <span>🔄</span> Integrate Historical Data
                         </button>
+                        <div style="width: 44px;"></div>
                     </div>
-                    
-                    <div class="audit-actions" style="margin-top: 1.5rem; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 1rem;">
+
+                    <div class="audit-actions"
+                        style="margin-top: 1.5rem; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 1rem;">
                         <button id="view-raw" class="audit-btn">
                             <span>📋</span> Export Data
                         </button>
@@ -213,9 +222,35 @@
             <!-- DASHBOARD TAB -->
             <section id="tab-dash" class="tab-content">
                 <header class="section-header">
-                    <h1>Insights</h1>
+                    <h1>Dashboard</h1>
                     <p>Google Sheets Connected Dashboard</p>
                 </header>
+
+                <div class="settings-card">
+                    <h3>App Settings</h3>
+                    <div class="settings-row">
+                        <div class="currency-col">
+                            <label>Home Currency</label>
+                            <select id="home-currency" class="currency-select">
+                                <option value="USD">USD ($)</option>
+                                <option value="EUR">EUR (€)</option>
+                                <option value="GBP">GBP (£)</option>
+                                <option value="AUD">AUD ($)</option>
+                                <option value="CAD">CAD ($)</option>
+                                <option value="OTHER_HOME">🔍 Other...</option>
+                            </select>
+                        </div>
+                        <div class="currency-col">
+                            <label>Daily Budget (<span id="settings-home-symbol">$</span>)</label>
+                            <div class="budget-input-group">
+                                <input type="number" id="daily-budget-input" class="subtle-input budget-input-locked" placeholder="e.g. 50" readonly>
+                                <button id="budget-lock-btn" class="budget-lock-btn" title="Unlock to edit">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="analytics-grid">
                     <div class="analytics-card main">
@@ -258,21 +293,23 @@
                     </div>
                 </div>
 
-                </div>
+    </div>
 
-            </section>
-        </main>
+    </section>
+    </main>
     </div>
 
     <!-- Currency Modal Overlay -->
     <div id="currency-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Search Currency</h3>
-            <input type="text" id="currency-search-input" class="currency-search-input" placeholder="e.g., CAD, Mexican Peso...">
+            <input type="text" id="currency-search-input" class="currency-search-input"
+                placeholder="e.g., CAD, Mexican Peso...">
             <div id="currency-list" class="currency-list">
                 <!-- Populated via JS -->
             </div>
-            <button id="close-currency-modal" class="ghost-btn" style="width: 100%; border-color: var(--border); color: var(--text);">Cancel</button>
+            <button id="close-currency-modal" class="ghost-btn"
+                style="width: 100%; border-color: var(--border); color: var(--text);">Cancel</button>
         </div>
     </div>
 

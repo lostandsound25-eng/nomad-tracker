@@ -3,6 +3,8 @@ const state = {
     activeTab: 'log',
     spendingCurrency: localStorage.getItem('nomad_last_spending_currency') || 'USD',
     homeCurrency: localStorage.getItem('nomad_home_currency') || 'USD',
+    dailyBudget: parseFloat(localStorage.getItem('nomad_daily_budget')) || 50,
+    progressCurrency: localStorage.getItem('nomad_progress_currency') || 'home',
     fxRateToHome: 1,
     selectedCategory: null,
     history: JSON.parse(localStorage.getItem('nomad_history') || '[]'),
@@ -44,15 +46,15 @@ const CURRENCY_SYMBOLS = {
 };
 
 const ALL_CURRENCIES = {
-    USD: 'US Dollar', EUR: 'Euro', GBP: 'British Pound', 
+    USD: 'US Dollar', EUR: 'Euro', GBP: 'British Pound',
     AUD: 'Australian Dollar', CAD: 'Canadian Dollar',
-    IDR: 'Indonesian Rupiah', THB: 'Thai Baht', VND: 'Vietnamese Dong', 
+    IDR: 'Indonesian Rupiah', THB: 'Thai Baht', VND: 'Vietnamese Dong',
     LAK: 'Lao Kip', KHR: 'Cambodian Riel', JPY: 'Japanese Yen',
-    MXN: 'Mexican Peso', SGD: 'Singapore Dollar', CHF: 'Swiss Franc', 
-    INR: 'Indian Rupee', CNY: 'Chinese Yuan', ZAR: 'South African Rand', 
+    MXN: 'Mexican Peso', SGD: 'Singapore Dollar', CHF: 'Swiss Franc',
+    INR: 'Indian Rupee', CNY: 'Chinese Yuan', ZAR: 'South African Rand',
     NZD: 'New Zealand Dollar', HKD: 'Hong Kong Dollar', MYR: 'Malaysian Ringgit',
-    PHP: 'Philippine Peso', KRW: 'South Korean Won', BRL: 'Brazilian Real', 
-    RUB: 'Russian Ruble', TRY: 'Turkish Lira', AED: 'UAE Dirham', 
+    PHP: 'Philippine Peso', KRW: 'South Korean Won', BRL: 'Brazilian Real',
+    RUB: 'Russian Ruble', TRY: 'Turkish Lira', AED: 'UAE Dirham',
     COP: 'Colombian Peso', ARS: 'Argentine Peso', CLP: 'Chilean Peso',
     PEN: 'Peruvian Sol', DKK: 'Danish Krone', SEK: 'Swedish Krona', NOK: 'Norwegian Krone'
 };
@@ -83,7 +85,16 @@ function init() {
         dashTotal: document.getElementById('dash-total'),
         projMonth: document.getElementById('proj-month'),
         projQuarter: document.getElementById('proj-quarter'),
-        notesInput: document.getElementById('expense-note')
+        notesInput: document.getElementById('expense-note'),
+        
+        // New elements
+        todaySpent: document.getElementById('today-spent'),
+        todayRemaining: document.getElementById('today-remaining'),
+        todayProgressFill: document.getElementById('today-progress-fill'),
+        budgetInput: document.getElementById('daily-budget-input'),
+        budgetLockBtn: document.getElementById('budget-lock-btn'),
+        settingsHomeSymbol: document.getElementById('settings-home-symbol'),
+        progressToggleBtn: document.getElementById('progress-toggle-btn')
     };
 
     // Set Date Input to Today
@@ -98,6 +109,13 @@ function init() {
         } else {
             todayLabel.innerText = "Date:";
         }
+        updateDailyProgress();
+    });
+
+    els.progressToggleBtn.addEventListener('click', () => {
+        state.progressCurrency = state.progressCurrency === 'home' ? 'spending' : 'home';
+        localStorage.setItem('nomad_progress_currency', state.progressCurrency);
+        updateDailyProgress();
     });
 
     // Ensure pre-selected currencies exist in dropdowns
@@ -109,6 +127,8 @@ function init() {
     els.homeSelect.value = state.homeCurrency;
     els.symbol.innerText = CURRENCY_SYMBOLS[state.spendingCurrency] || state.spendingCurrency;
     els.homeLabel.innerText = state.homeCurrency;
+    els.budgetInput.value = state.dailyBudget;
+    els.settingsHomeSymbol.innerText = CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency;
     autoScaleInput();
 
     // Fetch Initial Rates
@@ -141,8 +161,52 @@ function init() {
         state.homeCurrency = e.target.value;
         localStorage.setItem('nomad_home_currency', state.homeCurrency);
         els.homeLabel.innerText = state.homeCurrency;
+        els.settingsHomeSymbol.innerText = CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency;
         updateFxRate();
         calculateHomeValue();
+        updateDailyProgress();
+    });
+
+    let isBudgetLocked = true;
+    const lockPath = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>';
+    const unlockPath = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>';
+
+    els.budgetLockBtn.addEventListener('click', () => {
+        isBudgetLocked = !isBudgetLocked;
+        els.budgetInput.readOnly = isBudgetLocked;
+        
+        if (isBudgetLocked) {
+            // Lock and Save
+            els.budgetInput.classList.add('budget-input-locked');
+            els.budgetLockBtn.classList.remove('unlocked');
+            els.budgetLockBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${lockPath}</svg>`;
+            els.budgetLockBtn.title = "Unlock to edit";
+            
+            const val = parseFloat(els.budgetInput.value);
+            if (!isNaN(val) && val >= 0) {
+                state.dailyBudget = val;
+                localStorage.setItem('nomad_daily_budget', val);
+                updateDailyProgress();
+            } else {
+                els.budgetInput.value = state.dailyBudget; // revert visually if blanked out
+            }
+        } else {
+            // Unlock
+            els.budgetInput.classList.remove('budget-input-locked');
+            els.budgetLockBtn.classList.add('unlocked');
+            els.budgetLockBtn.title = "Save and lock";
+            els.budgetLockBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${unlockPath}</svg>`;
+            els.budgetInput.focus();
+        }
+    });
+
+    els.budgetInput.addEventListener('input', (e) => {
+        // live preview while typing
+        const val = parseFloat(e.target.value);
+        if (!isNaN(val) && val >= 0) {
+            state.dailyBudget = val;
+            updateDailyProgress();
+        }
     });
 
     els.localInput.addEventListener('input', () => {
@@ -367,7 +431,7 @@ function renderCurrencyList(filterText = '') {
     if (!currencyListEl) return;
     currencyListEl.innerHTML = '';
     const term = filterText.toLowerCase();
-    
+
     Object.keys(ALL_CURRENCIES).forEach(code => {
         const name = ALL_CURRENCIES[code];
         if (code.toLowerCase().includes(term) || name.toLowerCase().includes(term)) {
@@ -412,8 +476,9 @@ function selectCurrencyFromModal(code) {
         state.homeCurrency = code;
         localStorage.setItem('nomad_home_currency', state.homeCurrency);
         els.homeLabel.innerText = state.homeCurrency;
+        els.settingsHomeSymbol.innerText = CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency;
     }
-    
+
     updateFxRate();
     calculateHomeValue();
     closeCurrencyModal();
@@ -434,12 +499,12 @@ function ensureOptionExists(selectEl, code) {
 
 function autoScaleInput() {
     let rawVal = els.localInput.value.replace(/,/g, '');
-    
+
     // Only allow numbers and one decimal point
-    rawVal = rawVal.replace(/[^0-9.]/g, ''); 
+    rawVal = rawVal.replace(/[^0-9.]/g, '');
     const parts = rawVal.split('.');
     if (parts.length > 2) rawVal = parts[0] + '.' + parts.slice(1).join('');
-    
+
     // 1 Trillion Limit (1,000,000,000,000)
     if (parseFloat(rawVal) > 1000000000000) {
         alert("Maximum digits exceeded.");
@@ -452,7 +517,7 @@ function autoScaleInput() {
         const numPart = parts[0];
         const decimalPart = parts.length > 1 ? '.' + parts[1].substring(0, 2) : '';
         displayVal = parseInt(numPart || 0).toLocaleString('en-US') + decimalPart;
-        
+
         if (rawVal.endsWith('.') && !displayVal.includes('.')) displayVal += '.';
         if (rawVal === '0' || rawVal === '0.') displayVal = rawVal;
     }
@@ -462,16 +527,16 @@ function autoScaleInput() {
     // --- Aggressive Font Scaling ---
     const len = displayVal.length || 1;
     let fontSize = 4; // Starting size
-    
+
     if (len > 6) fontSize = 3.5;
     if (len > 9) fontSize = 2.8;
     if (len > 12) fontSize = 2.0;
     if (len > 15) fontSize = 1.6;
     if (len > 18) fontSize = 1.2; // The absolute floor for 1 trillion + decimals
-    
+
     els.localInput.style.fontSize = fontSize + 'rem';
     els.symbol.style.fontSize = Math.max(fontSize * 0.4, 1.1) + 'rem';
-    
+
     // Dynamic Width Calculation to keep it centered
     // We use a temporary span to measure exact pixel width for better centering
     const tempSpan = document.createElement('span');
@@ -484,8 +549,8 @@ function autoScaleInput() {
     document.body.appendChild(tempSpan);
     const textWidth = tempSpan.offsetWidth;
     document.body.removeChild(tempSpan);
-    
-    els.localInput.style.width = (textWidth + 5) + 'px'; 
+
+    els.localInput.style.width = (textWidth + 5) + 'px';
 }
 
 async function updateFxRate() {
@@ -493,6 +558,7 @@ async function updateFxRate() {
         state.fxRateToHome = 1;
         els.rateBanner.innerText = `1 ${state.spendingCurrency} = 1.00 ${state.homeCurrency}`;
         calculateHomeValue();
+        updateDailyProgress();
         return;
     }
 
@@ -505,13 +571,22 @@ async function updateFxRate() {
         const rateToHome = 1 / data.rates[state.spendingCurrency];
         state.fxRateToHome = rateToHome;
 
-        els.rateBanner.innerText = `1 ${state.spendingCurrency} ≈ ${rateToHome.toFixed(4)} ${state.homeCurrency}`;
+        // Better display logic: always show 1 of the larger currency = X of smaller currency
+        if (rateToHome < 1) {
+            const bigRate = 1 / rateToHome;
+            els.rateBanner.innerText = `1 ${state.homeCurrency} ≈ ${bigRate.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${state.spendingCurrency}`;
+        } else {
+            els.rateBanner.innerText = `1 ${state.spendingCurrency} ≈ ${rateToHome.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${state.homeCurrency}`;
+        }
+        
         calculateHomeValue();
+        updateDailyProgress();
     } catch (err) {
         console.error('FX Fetch failed', err);
         // Fallback logic could go here, but for now we show error
         els.rateBanner.innerText = `Rates unavailable (Offline)`;
         calculateHomeValue();
+        updateDailyProgress();
     }
 }
 
@@ -592,13 +667,13 @@ function openAuditModal() {
         </thead>
         <tbody>
     `;
-    
+
     state.history.forEach(h => {
         // Extract local YYYY-MM-DD from the stored ISO
         const localDate = new Date(h.date).toLocaleDateString();
         const displayCat = h.category.charAt(0).toUpperCase() + h.category.slice(1);
         const homeAmt = `${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${h.usdAmount.toFixed(2)}`;
-        
+
         html += `<tr>
             <td>${localDate}</td>
             <td>${displayCat}</td>
@@ -606,7 +681,7 @@ function openAuditModal() {
             <td class="table-note">${h.note || ''}</td>
         </tr>`;
     });
-    
+
     html += '</tbody>';
     content.innerHTML = html;
 }
@@ -713,7 +788,7 @@ function showDayDetail(dateKey, dateObj, dayData, clickedDiv) {
                 <span class="hist-amt">${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${itemTotal.toFixed(2)}</span>
             </div>
         `;
-        
+
         notes.forEach(note => {
             innerHTML += `<div class="hist-note">"${note}"</div>`;
         });
@@ -757,6 +832,7 @@ async function syncToSheets(expense) {
 }
 
 function updateDashboard() {
+    updateDailyProgress();
     if (state.history.length === 0) {
         els.dashTotal.innerText = "$0.00";
         els.dashDays.innerText = "0";
@@ -781,17 +857,70 @@ function updateDashboard() {
     // 3. Math
     const avgDaily = totalUsd / uniqueDays;
 
-    els.dashTotal.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency]}${totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    els.dashTotal.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency}${totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     els.dashDays.innerText = uniqueDays;
-    els.dashAvg.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency]}${avgDaily.toFixed(2)}`;
+    els.dashAvg.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency}${avgDaily.toFixed(2)}`;
 
     // Projections
-    els.projMonth.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency]}${(avgDaily * 30).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-    els.projQuarter.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency]}${(avgDaily * 90).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    els.projMonth.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency}${(avgDaily * 30).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    els.projQuarter.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency}${(avgDaily * 90).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
     // 4. Category Breakdown
     renderCategoryBreakdown(totalUsd);
     renderCategoryDonut(totalUsd);
+}
+
+function updateDailyProgress() {
+    const customDate = document.getElementById('expense-date').value;
+    // Calculate total spent on the selected date
+    const targetDateStr = customDate; // typically matches getLocalYYYYMMDD format "YYYY-MM-DD"
+    
+    let spentTodayHome = 0;
+    state.history.forEach(item => {
+        const itemDate = getLocalYYYYMMDD(new Date(item.date));
+        if (itemDate === targetDateStr) {
+            spentTodayHome += item.usdAmount;
+        }
+    });
+
+    const budgetHome = state.dailyBudget;
+    
+    let spentToday = spentTodayHome;
+    let budget = budgetHome;
+    let sym = CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency;
+
+    // Convert to spending currency if toggled
+    if (state.progressCurrency === 'spending' && state.fxRateToHome > 0) {
+        spentToday = spentTodayHome / state.fxRateToHome;
+        budget = budgetHome / state.fxRateToHome;
+        sym = CURRENCY_SYMBOLS[state.spendingCurrency] || state.spendingCurrency;
+    }
+
+    const remaining = Math.max(0, budget - spentToday);
+
+    const formatAmt = (amt) => {
+        // If it's a very large number (like IDR over 1,000,000), skip decimals to save space
+        if (amt >= 1000) {
+            return amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+        }
+        return amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    };
+
+    els.todaySpent.innerText = `${sym}${formatAmt(spentToday)}`;
+    els.todayRemaining.innerText = `${sym}${formatAmt(remaining)}`;
+
+    let percent = budget > 0 ? (spentToday / budget) * 100 : 0;
+    if (percent > 100) percent = 100;
+    
+    els.todayProgressFill.style.width = `${percent}%`;
+    
+    if (percent >= 100) {
+        els.todayProgressFill.style.backgroundColor = 'var(--danger)';
+    } else if (percent > 75) {
+        els.todayProgressFill.style.backgroundColor = '#f59e0b'; // warning orange
+    } else {
+        els.todayProgressFill.style.backgroundColor = 'var(--primary)';
+    }
 }
 
 function renderCategoryDonut(total) {
