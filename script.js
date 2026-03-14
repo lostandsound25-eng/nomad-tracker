@@ -7,11 +7,23 @@ const state = {
     progressCurrency: localStorage.getItem('nomad_progress_currency') || 'home',
     fxRateToHome: 1,
     selectedCategory: null,
-    history: JSON.parse(localStorage.getItem('nomad_history') || '[]'),
+    history: [], // Fully synced from Supabase now
+    trips: [],   // Loaded from Supabase
+    currentTrip: null,
     calMonth: new Date().getMonth(),
     calYear: new Date().getFullYear(),
-    isFirstLoad: true
+    isFirstLoad: true,
+    user: null,
+    isMultiDay: false,
+    rangeStart: null,
+    rangeEnd: null,
+    selectedDate: getLocalYYYYMMDD()
 };
+
+// Supabase Configuration
+const SUPABASE_URL = 'https://demldrpockwyrjalejbx.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_urMkuF8kM4i-eaMc9VORuA_QyiVj6vX';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Sample data to make the app look alive if empty
 const SAMPLE_DATA = [
@@ -65,6 +77,7 @@ let categoryChart = null;
 
 // --- Initialization ---
 
+
 function init() {
     // Populate Elements
     els = {
@@ -89,28 +102,75 @@ function init() {
         
         // New elements
         todaySpent: document.getElementById('today-spent'),
-        todayRemaining: document.getElementById('today-remaining'),
         todayProgressFill: document.getElementById('today-progress-fill'),
         budgetInput: document.getElementById('daily-budget-input'),
         budgetLockBtn: document.getElementById('budget-lock-btn'),
         settingsHomeSymbol: document.getElementById('settings-home-symbol'),
-        progressToggleBtn: document.getElementById('progress-toggle-btn')
+        progressToggleBtn: document.getElementById('progress-toggle-btn'),
+
+        // Auth elements
+        authOverlay: document.getElementById('auth-overlay'),
+        mainApp: document.getElementById('main-app'),
+        authError: document.getElementById('auth-error'),
+        loginForm: document.getElementById('login-form'),
+        signupForm: document.getElementById('signup-form'),
+        userEmailDisplay: document.getElementById('user-email-display'),
+
+        activeTripName: document.getElementById('active-trip-name'),
+        tripSelector: document.getElementById('trip-selector'),
+        copyBtn: document.querySelector('.copy-btn') // for Insights
     };
 
-    // Set Date Input to Today
-    const dateInput = document.getElementById('expense-date');
-    const todayLocal = getLocalYYYYMMDD();
-    dateInput.value = todayLocal;
+    const dateModal = document.getElementById('date-modal');
+    const displayDateText = document.getElementById('display-date-text');
+    const dateLabelText = document.getElementById('date-label-text');
+    
+    // Track modal specific calendar state
+    const modalCalState = {
+        month: new Date().getMonth(),
+        year: new Date().getFullYear()
+    };
 
-    const todayLabel = document.querySelector('.today-label');
-    dateInput.addEventListener('change', () => {
-        if (dateInput.value === todayLocal) {
-            todayLabel.innerText = "Today:";
+    const updateDisplayDate = (val) => {
+        const d = new Date(val + 'T00:00:00');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        displayDateText.innerText = `${months[d.getMonth()]} ${d.getDate()}`;
+        state.selectedDate = val;
+        
+        if (val === getLocalYYYYMMDD()) {
+            dateLabelText.innerText = "Today";
         } else {
-            todayLabel.innerText = "Date:";
+            dateLabelText.innerText = "Date";
         }
         updateDailyProgress();
+    };
+
+    document.getElementById('open-date-modal').addEventListener('click', () => {
+        renderModalCalendar(modalCalState);
+        dateModal.classList.add('active');
     });
+
+    document.getElementById('close-date-modal').addEventListener('click', () => {
+        dateModal.classList.remove('active');
+    });
+
+    document.getElementById('confirm-date').addEventListener('click', () => {
+        updateDisplayDate(state.selectedDate);
+        dateModal.classList.remove('active');
+    });
+
+    document.getElementById('modal-prev-month').onclick = () => {
+        modalCalState.month--;
+        if (modalCalState.month < 0) { modalCalState.month = 11; modalCalState.year--; }
+        renderModalCalendar(modalCalState);
+    };
+    document.getElementById('modal-next-month').onclick = () => {
+        modalCalState.month++;
+        if (modalCalState.month > 11) { modalCalState.month = 0; modalCalState.year++; }
+        renderModalCalendar(modalCalState);
+    };
+
+    updateDisplayDate(state.selectedDate);
 
     els.progressToggleBtn.addEventListener('click', () => {
         state.progressCurrency = state.progressCurrency === 'home' ? 'spending' : 'home';
@@ -135,16 +195,12 @@ function init() {
     updateFxRate();
     updateDashboard();
 
-    let preSelectSpend = state.spendingCurrency;
-    let preSelectHome = state.homeCurrency;
-
-    // Event Listeners
+    // Event Listeners - Core Tracker
     els.spendingSelect.addEventListener('change', (e) => {
         if (e.target.value === 'OTHER_SPEND') {
             openCurrencyModal('spending');
             return;
         }
-        preSelectSpend = e.target.value;
         state.spendingCurrency = e.target.value;
         localStorage.setItem('nomad_last_spending_currency', state.spendingCurrency);
         els.symbol.innerText = CURRENCY_SYMBOLS[state.spendingCurrency] || state.spendingCurrency;
@@ -157,7 +213,6 @@ function init() {
             openCurrencyModal('home');
             return;
         }
-        preSelectHome = e.target.value;
         state.homeCurrency = e.target.value;
         localStorage.setItem('nomad_home_currency', state.homeCurrency);
         els.homeLabel.innerText = state.homeCurrency;
@@ -176,32 +231,31 @@ function init() {
         els.budgetInput.readOnly = isBudgetLocked;
         
         if (isBudgetLocked) {
-            // Lock and Save
             els.budgetInput.classList.add('budget-input-locked');
             els.budgetLockBtn.classList.remove('unlocked');
             els.budgetLockBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${lockPath}</svg>`;
-            els.budgetLockBtn.title = "Unlock to edit";
             
             const val = parseFloat(els.budgetInput.value);
             if (!isNaN(val) && val >= 0) {
                 state.dailyBudget = val;
                 localStorage.setItem('nomad_daily_budget', val);
+                // Also update trip budget in Supabase if we have a current trip
+                if (state.currentTrip) {
+                    sb.from('trips').update({ daily_budget: val }).eq('id', state.currentTrip.id).then();
+                }
                 updateDailyProgress();
             } else {
-                els.budgetInput.value = state.dailyBudget; // revert visually if blanked out
+                els.budgetInput.value = state.dailyBudget;
             }
         } else {
-            // Unlock
             els.budgetInput.classList.remove('budget-input-locked');
             els.budgetLockBtn.classList.add('unlocked');
-            els.budgetLockBtn.title = "Save and lock";
             els.budgetLockBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${unlockPath}</svg>`;
             els.budgetInput.focus();
         }
     });
 
     els.budgetInput.addEventListener('input', (e) => {
-        // live preview while typing
         const val = parseFloat(e.target.value);
         if (!isNaN(val) && val >= 0) {
             state.dailyBudget = val;
@@ -224,94 +278,242 @@ function init() {
 
     els.saveBtn.addEventListener('click', saveExpense);
 
-    // Sync Wiring
-    const fetchBtn = document.getElementById('fetch-sheets');
-    const clearBtn = document.getElementById('clear-data');
-    const viewRawBtn = document.getElementById('view-raw');
-    const sheetsUrlInput = document.getElementById('sheets-url');
-    const saveSyncBtn = document.getElementById('save-sync-url');
+    // Auth Listeners
+    document.getElementById('switch-to-signup').addEventListener('click', (e) => {
+        e.preventDefault();
+        els.loginForm.classList.add('hidden');
+        els.signupForm.classList.remove('hidden');
+        document.getElementById('auth-subtitle').innerText = "Create your nomad account";
+        els.authError.classList.add('hidden');
+    });
 
-    if (saveSyncBtn) {
-        const storedUrl = localStorage.getItem('nomad_sheets_url');
-        if (storedUrl) {
-            sheetsUrlInput.value = storedUrl;
-            saveSyncBtn.innerText = "Synced ✅";
-        }
-        sheetsUrlInput.addEventListener('input', () => {
-            saveSyncBtn.innerText = "Save Connection";
-        });
-        saveSyncBtn.addEventListener('click', () => {
-            const url = sheetsUrlInput.value.trim();
-            if (url.startsWith('https://script.google.com')) {
-                localStorage.setItem('nomad_sheets_url', url);
-                saveSyncBtn.innerText = "Synced ✅";
-                const statusEl = document.getElementById('sync-status');
-                if (statusEl) {
-                    statusEl.innerText = "Cloud Connection Active";
-                    statusEl.style.color = "#4caf50";
-                    setTimeout(() => {
-                        statusEl.innerText = "Ready to connect";
-                        statusEl.style.color = "var(--text-dim)";
-                    }, 3000);
-                }
-            } else {
-                alert("Please paste a valid Google Apps Script URL (starts with https://script.google.com)");
-            }
+    document.getElementById('switch-to-login').addEventListener('click', (e) => {
+        e.preventDefault();
+        els.signupForm.classList.add('hidden');
+        els.loginForm.classList.remove('hidden');
+        document.getElementById('auth-subtitle').innerText = "Sign in to track your adventures";
+        els.authError.classList.add('hidden');
+    });
+
+    document.getElementById('btn-login').addEventListener('click', handleLogin);
+    document.getElementById('btn-signup').addEventListener('click', handleSignup);
+    document.getElementById('btn-logout').addEventListener('click', handleLogout);
+    document.getElementById('btn-seed-data').addEventListener('click', seedDemoData);
+
+    const handleGoogle = () => alert("Google Sign-In requires a Client ID. Please set this up in your Supabase Dashboard under Authentication -> Providers -> Google.");
+    document.getElementById('btn-google').addEventListener('click', handleGoogle);
+    document.getElementById('btn-google-signup').addEventListener('click', handleGoogle);
+
+    // Trip Selector (Dashboard)
+    if (els.tripSelector) {
+        els.tripSelector.addEventListener('change', (e) => {
+            const trip = state.trips.find(t => t.id === e.target.value);
+            if (trip) setActiveTrip(trip);
         });
     }
 
-    if (fetchBtn) fetchBtn.addEventListener('click', fetchHistoryFromSheets);
-
-    if (clearBtn) {
-        let clearClicks = 0;
-        clearBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            clearClicks++;
-            if (clearClicks === 1) {
-                clearBtn.innerText = "SURE? TAP AGAIN";
-                setTimeout(() => {
-                    clearClicks = 0;
-                    clearBtn.innerText = "CLEAR ALL DATA";
-                }, 2000);
-            } else {
-                state.history = [];
-                localStorage.removeItem('nomad_history');
-                renderHistory();
-                updateDashboard();
-                clearBtn.innerText = "DATA CLEARED";
-                setTimeout(() => clearBtn.innerText = "CLEAR ALL DATA", 2000);
-                clearClicks = 0;
-            }
-        });
-    }
-
-    if (viewRawBtn) {
-        viewRawBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            openAuditModal();
-        });
-    }
-
-    // Calendar Navigation
+    // Calendar & Insights Wiring
     const prevBtn = document.getElementById('prev-month');
     const nextBtn = document.getElementById('next-month');
     if (prevBtn) prevBtn.onclick = () => changeMonth(-1);
     if (nextBtn) nextBtn.onclick = () => changeMonth(1);
 
     const closeDetail = document.getElementById('close-detail');
-    if (closeDetail) {
-        closeDetail.onclick = () => {
-            document.getElementById('day-detail-panel').style.display = 'none';
-        };
-    }
+    if (closeDetail) closeDetail.onclick = () => { document.getElementById('day-detail-panel').style.display = 'none'; };
 
+
+    // Trip Selector Modal
+    const tripModal = document.getElementById('trip-modal');
+    document.getElementById('open-trip-selector').addEventListener('click', () => {
+        renderTripMenu();
+        tripModal.classList.add('active');
+    });
+
+    document.getElementById('close-trip-modal').addEventListener('click', () => {
+        tripModal.classList.remove('active');
+    });
+
+    document.getElementById('btn-add-trip-new').addEventListener('click', async () => {
+        const name = prompt("Trip Name:");
+        if (name) {
+            const { data, error } = await sb.from('trips').insert([
+                { name, daily_budget: state.dailyBudget, home_currency: state.homeCurrency, created_by: state.user.id }
+            ]).select();
+            if (data) {
+                await sb.from('trip_members').insert([{ trip_id: data[0].id, user_id: state.user.id, role: 'owner' }]);
+                fetchUserTrips();
+                tripModal.classList.remove('active');
+            }
+        }
+    });
+
+    const viewRawBtn = document.getElementById('view-raw');
+    if (viewRawBtn) viewRawBtn.onclick = openAuditModal;
+
+    if (els.copyBtn) els.copyBtn.addEventListener('click', copyToSheets);
+
+    // Initial Auth Check & Persistence
+    sb.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            updateAuthState(session?.user);
+        } else if (event === 'SIGNED_OUT') {
+            updateAuthState(null);
+        }
+    });
+
+    checkUser();
+}
+
+function renderTripMenu() {
+    const list = document.getElementById('trip-list-menu');
+    list.innerHTML = state.trips.map(t => `
+        <div class="trip-menu-item ${state.currentTrip && state.currentTrip.id === t.id ? 'active' : ''}" onclick="selectTripFromMenu('${t.id}')">
+            <span class="trip-name">${t.name}</span>
+            ${state.currentTrip && state.currentTrip.id === t.id ? '<span>✓</span>' : ''}
+        </div>
+    `).join('');
+}
+
+window.selectTripFromMenu = (id) => {
+    const trip = state.trips.find(t => t.id === id);
+    if (trip) setActiveTrip(trip);
+    document.getElementById('trip-modal').classList.remove('active');
+};
+
+/** HELPER FUNCTIONS **/
+
+function updateSplitLabel() {
+    const days = parseInt(els.multiDayCount.value) || 1;
+    els.splitPerDayLabel.innerText = days;
+}
+
+async function setActiveTrip(trip) {
+    state.currentTrip = trip;
+    state.dailyBudget = trip.daily_budget;
+    state.homeCurrency = trip.home_currency;
+    
+    // Update UI
+    els.activeTripName.innerText = trip.name;
+    els.budgetInput.value = trip.daily_budget;
+    els.homeSelect.value = trip.home_currency;
+    els.homeLabel.innerText = trip.home_currency;
+    els.settingsHomeSymbol.innerText = CURRENCY_SYMBOLS[trip.home_currency] || trip.home_currency;
+    
+    localStorage.setItem('nomad_home_currency', state.homeCurrency);
+    localStorage.setItem('nomad_daily_budget', state.dailyBudget);
+
+    // Refresh everything
+    updateFxRate();
+    fetchTripExpenses();
+}
+
+async function fetchUserTrips() {
+    if (!state.user) return;
+    const { data, error } = await sb.from('trips').select('*').order('created_at', { ascending: false });
+    if (error) { console.error("Error fetching trips:", error); return; }
+    
+    state.trips = data;
+    if (data.length > 0) {
+        els.tripSelector.innerHTML = data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        if (!state.currentTrip) setActiveTrip(data[0]);
+    } else {
+        createDemoTrip();
+    }
+}
+
+async function createDemoTrip() {
+    const { data: tripData, error: tripError } = await sb.from('trips').insert([
+        { name: 'My Adventure', daily_budget: 50, home_currency: 'USD', created_by: state.user.id }
+    ]).select();
+
+    if (tripError) { console.error("Failed to create demo trip", tripError); return; }
+    
+    await sb.from('trip_members').insert([
+        { trip_id: tripData[0].id, user_id: state.user.id, role: 'owner' }
+    ]);
+
+    fetchUserTrips();
+}
+
+async function fetchTripExpenses() {
+    if (!state.currentTrip) return;
+    const { data, error } = await sb.from('expenses')
+        .select('*')
+        .eq('trip_id', state.currentTrip.id)
+        .order('spent_at', { ascending: false });
+        
+    if (error) { console.error("Failed to fetch expenses", error); return; }
+    
+    state.history = data.map(e => ({
+        id: e.id,
+        date: e.spent_at,
+        category: e.category,
+        localAmount: e.local_amount,
+        currency: e.local_currency,
+        usdAmount: e.home_amount,
+        symbol: CURRENCY_SYMBOLS[e.local_currency] || e.local_currency,
+        note: e.note
+    }));
+    
     renderHistory();
     updateDashboard();
+    updateDailyProgress();
+}
 
-    // Auto-fetch if we have a URL saved
-    if (localStorage.getItem('nomad_sheets_url')) {
-        fetchHistoryFromSheets(true); // pass true for 'silent' loading
+async function checkUser() {
+    const { data: { user } } = await sb.auth.getUser();
+    updateAuthState(user);
+}
+
+function updateAuthState(user) {
+    state.user = user;
+    if (user) {
+        els.authOverlay.classList.add('hidden');
+        els.mainApp.classList.remove('hidden');
+        els.userEmailDisplay.innerText = user.email;
+        fetchUserTrips();
+    } else {
+        els.authOverlay.classList.remove('hidden');
+        els.mainApp.classList.add('hidden');
+        els.userEmailDisplay.innerText = "Not logged in";
+        state.history = [];
+        state.currentTrip = null;
     }
+}
+
+async function handleLogin() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    els.authError.classList.add('hidden');
+
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+    if (error) {
+        els.authError.innerText = error.message;
+        els.authError.classList.remove('hidden');
+    } else {
+        updateAuthState(data.user);
+    }
+}
+
+async function handleSignup() {
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    els.authError.classList.add('hidden');
+
+    const { data, error } = await sb.auth.signUp({ email, password });
+
+    if (error) {
+        els.authError.innerText = error.message;
+        els.authError.classList.remove('hidden');
+    } else if (data.user) {
+        updateAuthState(data.user);
+    }
+}
+
+async function handleLogout() {
+    await sb.auth.signOut();
+    updateAuthState(null);
 }
 
 function changeMonth(delta) {
@@ -597,46 +799,74 @@ function calculateHomeValue() {
     els.usdOutput.innerText = homeVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function saveExpense() {
+async function saveExpense() {
     const rawVal = els.localInput.value.replace(/,/g, '');
-    const amount = parseFloat(rawVal);
-    const customDate = document.getElementById('expense-date').value;
-
-    if (!amount || !state.selectedCategory || !customDate) {
-        alert("Please enter an amount and select a category!");
+    const totalAmount = parseFloat(rawVal);
+    
+    if (!totalAmount || !state.selectedCategory || !state.currentTrip) {
+        alert("Enter an amount, category, and ensure a trip is selected!");
         return;
     }
 
-    const expense = {
-        id: Date.now(),
-        date: new Date(customDate + 'T00:00:00').toISOString(), // Store as Local Midnight ISO
-        category: state.selectedCategory,
-        localAmount: amount,
-        currency: state.spendingCurrency,
-        usdAmount: amount * state.fxRateToHome,
-        symbol: CURRENCY_SYMBOLS[state.spendingCurrency] || state.spendingCurrency,
-        note: els.notesInput.value.trim()
-    };
+    const newExpenses = [];
+    
+    if (state.rangeStart && state.rangeEnd) {
+        // Multi-day split
+        const start = new Date(state.rangeStart + 'T00:00:00');
+        const end = new Date(state.rangeEnd + 'T00:00:00');
+        const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        
+        const amountPerDay = totalAmount / diffDays;
+        const homeAmountPerDay = (totalAmount * state.fxRateToHome) / diffDays;
 
-    state.history.unshift(expense);
-    localStorage.setItem('nomad_history', JSON.stringify(state.history));
+        for (let i = 0; i < diffDays; i++) {
+            const d = new Date(start);
+            d.setDate(d.getDate() + i);
+            newExpenses.push({
+                trip_id: state.currentTrip.id,
+                user_id: state.user.id,
+                local_amount: amountPerDay,
+                local_currency: state.spendingCurrency,
+                home_amount: homeAmountPerDay,
+                fx_rate: state.fxRateToHome,
+                category: state.selectedCategory,
+                note: els.notesInput.value.trim() + ` (Split ${i+1}/${diffDays})`,
+                spent_at: d.toISOString()
+            });
+        }
+    } else {
+        // Single day
+        const d = new Date(state.selectedDate + 'T00:00:00');
+        newExpenses.push({
+            trip_id: state.currentTrip.id,
+            user_id: state.user.id,
+            local_amount: totalAmount,
+            local_currency: state.spendingCurrency,
+            home_amount: totalAmount * state.fxRateToHome,
+            fx_rate: state.fxRateToHome,
+            category: state.selectedCategory,
+            note: els.notesInput.value.trim(),
+            spent_at: d.toISOString()
+        });
+    }
 
-    // Sync to Sheets if URL exists
-    syncToSheets(expense);
+    const { error } = await sb.from('expenses').insert(newExpenses);
+    if (error) { alert("Failed to save: " + error.message); return; }
 
     // Reset UI
     els.localInput.value = '';
-    els.localInput.style.width = '1ch'; // Reset scaler
-    els.localInput.style.fontSize = '4rem'; // Reset font size
-    els.symbol.style.fontSize = '1.5rem'; // Reset symbol size
+    autoScaleInput();
     els.usdOutput.innerText = '0.00';
     els.notesInput.value = '';
     els.catBtns.forEach(b => b.classList.remove('selected'));
     state.selectedCategory = null;
+    
+    // Clear range
+    state.rangeStart = null;
+    state.rangeEnd = null;
+    document.getElementById('range-selection-hint').innerText = "Tap dates to select range";
 
-    renderHistory();
-    updateDashboard();
-
+    fetchTripExpenses();
     if (navigator.vibrate) navigator.vibrate(50);
 }
 
@@ -649,37 +879,26 @@ window.closeModal = function () {
 function openAuditModal() {
     const modal = document.getElementById('raw-modal');
     const content = document.getElementById('raw-log-content');
+    const title = modal.querySelector('h2');
+    if (title) title.innerText = `Export Trip: ${state.currentTrip ? state.currentTrip.name : 'Unknown'}`;
     modal.classList.add('active');
 
     if (state.history.length === 0) {
-        content.innerHTML = '<tbody><tr><td colspan="4" style="text-align:center; padding: 2rem;">No data to analyze.</td></tr></tbody>';
+        content.innerHTML = '<tbody><tr><td colspan="4" style="text-align:center; padding: 2rem;">No data for this trip.</td></tr></tbody>';
         return;
     }
 
-    let html = `
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Note</th>
-            </tr>
-        </thead>
-        <tbody>
-    `;
+    let html = `<thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Note</th></tr></thead><tbody>`;
 
-    state.history.forEach(h => {
-        // Extract local YYYY-MM-DD from the stored ISO
+    // Sort history by date for export
+    const sorted = [...state.history].sort((a,b) => new Date(a.date) - new Date(b.date));
+
+    sorted.forEach(h => {
         const localDate = new Date(h.date).toLocaleDateString();
         const displayCat = h.category.charAt(0).toUpperCase() + h.category.slice(1);
         const homeAmt = `${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${h.usdAmount.toFixed(2)}`;
 
-        html += `<tr>
-            <td>${localDate}</td>
-            <td>${displayCat}</td>
-            <td><strong>${homeAmt}</strong></td>
-            <td class="table-note">${h.note || ''}</td>
-        </tr>`;
+        html += `<tr><td>${localDate}</td><td>${displayCat}</td><td><strong>${homeAmt}</strong></td><td class="table-note">${h.note || ''}</td></tr>`;
     });
 
     html += '</tbody>';
@@ -729,6 +948,16 @@ function renderCalendar() {
         const div = document.createElement('div');
         div.className = 'cal-day';
         if (key === todayLocal) div.classList.add('is-today');
+        if (key === state.selectedDate) div.classList.add('selected-day');
+
+        // Range highlighting
+        if (state.rangeStart && state.rangeEnd) {
+            if (key === state.rangeStart) div.classList.add('range-start');
+            else if (key === state.rangeEnd) div.classList.add('range-end');
+            else if (key > state.rangeStart && key < state.rangeEnd) div.classList.add('in-range');
+        } else if (state.rangeStart && key === state.rangeStart) {
+            div.classList.add('range-start');
+        }
 
         div.innerHTML = `
             <span class="day-num">${day}</span>
@@ -737,9 +966,43 @@ function renderCalendar() {
             </div>
         `;
 
-        div.addEventListener('click', () => showDayDetail(key, dateObj, dayData, div));
+        div.onclick = () => handleCalendarDayClick(key, dateObj, dayData);
         body.appendChild(div);
     }
+}
+
+function handleCalendarDayClick(key, dateObj, dayData) {
+    // 1. Double click or sequential click logic for Range
+    if (!state.rangeStart || (state.rangeStart && state.rangeEnd)) {
+        // Start a new range
+        state.rangeStart = key;
+        state.rangeEnd = null;
+        document.getElementById('range-selection-hint').innerText = `Starting at ${key}...`;
+    } else if (state.rangeStart && !state.rangeEnd) {
+        if (key < state.rangeStart) {
+            // Reset and start new if clicked earlier
+            state.rangeStart = key;
+        } else if (key === state.rangeStart) {
+            // Unselect if clicking same day
+            state.rangeStart = null;
+            document.getElementById('range-selection-hint').innerText = "Tap dates to select range";
+        } else {
+            // Set end
+            state.rangeEnd = key;
+            const diff = Math.round((new Date(state.rangeEnd) - new Date(state.rangeStart)) / (1000 * 60 * 60 * 24)) + 1;
+            document.getElementById('range-selection-hint').innerText = `Range Selected: ${diff} Days`;
+        }
+    }
+
+    // 2. Select this date as the primary focus in Add tab
+    const dateInput = document.getElementById('expense-date');
+    if (dateInput) {
+        dateInput.value = key;
+        dateInput.dispatchEvent(new Event('change'));
+    }
+
+    renderHistory();
+    showDayDetail(key, dateObj, dayData, null);
 }
 
 function showDayDetail(dateKey, dateObj, dayData, clickedDiv) {
@@ -871,9 +1134,8 @@ function updateDashboard() {
 }
 
 function updateDailyProgress() {
-    const customDate = document.getElementById('expense-date').value;
-    // Calculate total spent on the selected date
-    const targetDateStr = customDate; // typically matches getLocalYYYYMMDD format "YYYY-MM-DD"
+    // We now use state.selectedDate instead of reading from a (now removed) input field
+    const targetDateStr = state.selectedDate; 
     
     let spentTodayHome = 0;
     state.history.forEach(item => {
@@ -907,7 +1169,7 @@ function updateDailyProgress() {
     };
 
     els.todaySpent.innerText = `${sym}${formatAmt(spentToday)}`;
-    els.todayRemaining.innerText = `${sym}${formatAmt(remaining)}`;
+    // els.todayRemaining.innerText removed as it's no longer in UI
 
     let percent = budget > 0 ? (spentToday / budget) * 100 : 0;
     if (percent > 100) percent = 100;
@@ -1015,15 +1277,21 @@ function renderCategoryBreakdown(total) {
 function copyToSheets() {
     if (state.history.length === 0) return;
 
-    // Export format: Date, Category, Local Amount, Currency, USD Amount
-    const csvContent = state.history.map(h => {
-        return `${new Date(h.date).toLocaleDateString()}\t${h.category}\t${h.localAmount}\t${h.currency}\t${h.usdAmount.toFixed(2)}`;
+    // TSV Export: Date, Category, Amount (Home), Note
+    let content = `Trip: ${state.currentTrip ? state.currentTrip.name : 'Unknown'}\n`;
+    content += "Date\tCategory\tAmount (${state.homeCurrency})\tNote\n";
+    
+    const sorted = [...state.history].sort((a,b) => new Date(a.date) - new Date(b.date));
+    content += sorted.map(h => {
+        const d = new Date(h.date).toLocaleDateString();
+        return `${d}\t${h.category}\t${h.usdAmount.toFixed(2)}\t${h.note || ''}`;
     }).join('\n');
 
-    navigator.clipboard.writeText(csvContent).then(() => {
-        const originalText = els.copyBtn.innerText;
-        els.copyBtn.innerText = 'Copied!';
-        setTimeout(() => els.copyBtn.innerText = originalText, 2000);
+    navigator.clipboard.writeText(content).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        const originalText = btn.innerText;
+        btn.innerText = 'Copied!';
+        setTimeout(() => btn.innerText = originalText, 2000);
     });
 }
 
@@ -1041,5 +1309,125 @@ window.switchTab = function (tabId) {
     if (tabId === 'history') renderHistory();
     if (tabId === 'dash') updateDashboard();
 };
+
+/** MODAL CALENDAR **/
+function renderModalCalendar(calState) {
+    const body = document.getElementById('modal-calendar-body');
+    const label = document.getElementById('modal-calendar-month-year');
+    body.innerHTML = '';
+
+    const firstDay = new Date(calState.year, calState.month, 1).getDay();
+    const daysInMonth = new Date(calState.year, calState.month + 1, 0).getDate();
+    const monthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date(calState.year, calState.month));
+    label.innerText = `${monthName} ${calState.year}`;
+
+    for (let i = 0; i < firstDay; i++) {
+        const div = document.createElement('div');
+        div.className = 'cal-day empty';
+        body.appendChild(div);
+    }
+
+    const todayLocal = getLocalYYYYMMDD();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(calState.year, calState.month, day);
+        const key = getLocalYYYYMMDD(dateObj);
+
+        const div = document.createElement('div');
+        div.className = 'cal-day';
+        if (key === todayLocal) div.classList.add('is-today');
+        if (key === state.selectedDate) div.classList.add('selected-day');
+
+        if (state.rangeStart && state.rangeEnd) {
+            if (key === state.rangeStart) div.classList.add('range-start');
+            else if (key === state.rangeEnd) div.classList.add('range-end');
+            else if (key > state.rangeStart && key < state.rangeEnd) div.classList.add('in-range');
+        } else if (state.rangeStart && key === state.rangeStart) {
+            div.classList.add('range-start');
+        }
+
+        div.innerHTML = `<span class="day-num">${day}</span>`;
+        div.onclick = () => {
+            handleCalendarDayClick(key, dateObj, null);
+            renderModalCalendar(calState);
+            const hint = document.getElementById('modal-range-hint');
+            if (state.rangeStart && state.rangeEnd) {
+                const diff = Math.round((new Date(state.rangeEnd) - new Date(state.rangeStart)) / (1000 * 60 * 60 * 24)) + 1;
+                hint.innerText = `${diff} days selected`;
+            } else if (state.rangeStart) {
+                hint.innerText = `Starting from ${state.rangeStart}...`;
+            } else {
+                hint.innerText = `Selected: ${key}`;
+            }
+        };
+        body.appendChild(div);
+    }
+}
+
+async function seedDemoData() {
+    if (!state.user || !state.currentTrip) {
+        alert("Please log in and select a trip first.");
+        return;
+    }
+
+    if (!confirm("This will add about 60 sample expenses to your current trip. Continue?")) return;
+
+    const btn = document.getElementById('btn-seed-data');
+    const originalText = btn.innerText;
+    btn.innerText = "Seeding... (Wait 5s)";
+    btn.disabled = true;
+
+    const expenses = [];
+    const notes = [
+        "Local market lunch", "Grab to the station", "Morning coffee", 
+        "Dinner with locals", "Supermarket bulk buy", "Airbnb cleaning fee",
+        "Weekend moped rental", "Ferry ticket to island", "Beach club cocktails",
+        "SIM card topup", "Laundry service", "Temple entry fee"
+    ];
+
+    const categories = ['accommodation', 'breakfast', 'lunch', 'dinner', 'transportation', 'miscellaneous'];
+    
+    // Seed for last 60 days
+    for (let i = 0; i < 60; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        
+        // Randomly skip some days to look natural
+        if (Math.random() > 0.8) continue;
+
+        // Add 1-3 random expenses per day
+        const numPerDay = Math.floor(Math.random() * 3) + 1;
+        for (let j = 0; j < numPerDay; j++) {
+            const cat = categories[Math.floor(Math.random() * categories.length)];
+            const localAmt = Math.floor(Math.random() * 50) + 5;
+            const note = Math.random() > 0.5 ? notes[Math.floor(Math.random() * notes.length)] : "";
+            
+            expenses.push({
+                trip_id: state.currentTrip.id,
+                user_id: state.user.id,
+                local_amount: localAmt,
+                local_currency: state.homeCurrency,
+                home_amount: localAmt,
+                fx_rate: 1,
+                category: cat,
+                note: note,
+                spent_at: d.toISOString()
+            });
+        }
+    }
+
+    const { error } = await sb.from('expenses').insert(expenses);
+    if (error) {
+        alert("Seed failed: " + error.message);
+    } else {
+        btn.innerText = "Done! ✨";
+        fetchTripExpenses();
+    }
+
+    setTimeout(() => {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }, 4000);
+}
 
 document.addEventListener('DOMContentLoaded', init);

@@ -13,10 +13,61 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
-    <div class="app-container">
+    <!-- AUTH SCREEN OVERLAY -->
+    <div id="auth-overlay" class="auth-overlay">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">✨</div>
+                <h1>Nomad Tracker</h1>
+                <p id="auth-subtitle">Sign in to track your adventures</p>
+            </div>
+            
+            <div class="auth-form" id="login-form">
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="auth-email" placeholder="hello@nomad.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="auth-password" placeholder="••••••••">
+                </div>
+                <button id="btn-login" class="save-btn">Login</button>
+                <div class="auth-divider"><span>OR</span></div>
+                <button id="btn-google" class="google-btn">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="18">
+                    Sign in with Google
+                </button>
+                <p class="auth-switch">Don't have an account? <a href="#" id="switch-to-signup">Sign Up</a></p>
+            </div>
+
+            <div class="auth-form hidden" id="signup-form">
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="signup-email" placeholder="hello@nomad.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="signup-password" placeholder="••••••••">
+                </div>
+                <button id="btn-signup" class="save-btn">Create Account</button>
+                <div class="auth-divider"><span>OR</span></div>
+                <button id="btn-google-signup" class="google-btn">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="18">
+                    Sign up with Google
+                </button>
+                <p class="auth-switch">Already have an account? <a href="#" id="switch-to-login">Login</a></p>
+            </div>
+            
+            <div id="auth-error" class="auth-error-msg hidden"></div>
+        </div>
+    </div>
+
+    <div class="app-container hidden" id="main-app">
         <!-- Main Navigation Tabs -->
         <nav class="tab-bar">
             <button class="tab-btn active" onclick="switchTab('log')">
@@ -45,21 +96,23 @@
         </nav>
 
         <main class="content">
-            <!-- LOG EXPENSE TAB -->
-            <section id="tab-log" class="tab-content active">
-                <header class="section-header">
-                    <h1>Add Expense</h1>
-                    <div class="date-selector-wrapper">
-                        <span class="today-label">Date:</span>
-                        <input type="date" id="expense-date" class="date-input">
+                <header class="section-header tracker-header">
+                    <div class="trip-info-pill" id="open-trip-selector">
+                        <span id="active-trip-name">Paris 2026</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                     </div>
                 </header>
 
                 <div class="daily-progress-card">
                     <div class="progress-labels">
-                        <span class="spent-label">Spent today: <strong id="today-spent">$0.00</strong></span>
+                        <div class="date-selector-sleek" id="open-date-modal">
+                            <span class="active-date-label" id="date-label-text">Today</span>
+                            <div class="date-input-trigger">
+                                <span id="display-date-text">March 14</span>
+                            </div>
+                        </div>
                         <div class="progress-toggle-wrap" id="progress-toggle-btn" title="Toggle Currency">
-                            <span class="remaining-label">Remaining: <strong id="today-remaining">$0.00</strong></span>
+                            <span class="spent-label">Spent: <strong id="today-spent">$0.00</strong></span>
                             <div class="glass-icon-btn">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M17 2.1l4 4-4 4"/>
@@ -112,6 +165,7 @@
                     <div class="notes-wrapper">
                         <input type="text" id="expense-note" placeholder="Add a note (optional)..." autocomplete="off">
                     </div>
+
 
                     <div class="category-grid">
                         <button class="cat-btn" data-category="accommodation">
@@ -177,28 +231,12 @@
                 <!-- Sync & Audit Section -->
                 <div class="sync-audit-card">
                     <div class="sync-header">
-                        <h3>Cloud Backup</h3>
-                        <p id="sync-status">Not connected</p>
+                        <h3>Trip Management</h3>
+                        <p id="range-selection-hint" style="font-size: 0.75rem; color: var(--primary); font-weight: 600;">Tap dates to select range</p>
                     </div>
-                    <div class="sync-input-group">
-                        <input type="text" id="sheets-url" placeholder="Apps Script URL..." class="subtle-input">
-                        <button id="save-sync-url" class="sync-save-btn">Link</button>
-                    </div>
-
-                    <div class="audit-actions" style="margin-bottom: 1.5rem;">
-                        <button id="fetch-sheets" class="audit-btn">
-                            <span>🔄</span> Integrate Historical Data
-                        </button>
-                        <div style="width: 44px;"></div>
-                    </div>
-
-                    <div class="audit-actions"
-                        style="margin-top: 1.5rem; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 1rem;">
-                        <button id="view-raw" class="audit-btn">
-                            <span>📋</span> Export Data
-                        </button>
-                        <button id="clear-data" class="danger-icon-btn" title="Wipe Local Data">
-                            🗑️
+                    <div class="audit-actions">
+                        <button id="view-raw" class="audit-btn main-action">
+                            <span>📋</span> Export Trip Data
                         </button>
                     </div>
                 </div>
@@ -207,7 +245,10 @@
                 <div id="raw-modal" class="modal-overlay">
                     <div class="modal-content export-modal">
                         <header class="export-header">
-                            <h2>Export to Long Format</h2>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <h2>Export</h2>
+                                <button class="copy-btn">Copy for Sheets</button>
+                            </div>
                             <button onclick="closeModal()" class="close-btn">&times;</button>
                         </header>
                         <div class="table-container">
@@ -225,6 +266,17 @@
                     <h1>Dashboard</h1>
                     <p>Google Sheets Connected Dashboard</p>
                 </header>
+
+                <div class="settings-card">
+                    <h3>Current Trip</h3>
+                    <div class="trip-selector-row">
+                        <select id="trip-selector" class="currency-select">
+                            <option value="demo-1">Paris 2026 (Active)</option>
+                            <option value="demo-2">Bali Memories 2025</option>
+                        </select>
+                        <button class="ghost-btn" style="padding: 10px; border-radius: 10px; font-weight: 700;">+ New</button>
+                    </div>
+                </div>
 
                 <div class="settings-card">
                     <h3>App Settings</h3>
@@ -250,6 +302,15 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3>Developer Tools</h3>
+                    <p style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 1rem;">Populate your account with sample expenses to see the dashboard in action.</p>
+                    <button id="btn-seed-data" class="save-btn secondary">Populate Demo Data (2 Months)</button>
+                    
+                    <button id="btn-logout" class="danger-btn" style="width: 100%; margin-top: 1rem;">Log Out</button>
+                    <p id="user-email-display" style="font-size: 0.7rem; text-align: center; margin-top: 8px; color: var(--text-dim);"></p>
                 </div>
 
                 <div class="analytics-grid">
@@ -279,6 +340,7 @@
                     </div>
                 </div>
 
+
                 <div class="category-breakdown-card">
                     <h3>Spending by Category</h3>
                     <div class="donut-chart-container">
@@ -292,11 +354,52 @@
                         <!-- Populated via JS -->
                     </div>
                 </div>
-
+            </section>
+        </main>
     </div>
 
-    </section>
-    </main>
+    <!-- Date & Range Selector Modal -->
+    <div id="date-modal" class="modal-overlay">
+        <div class="modal-content calendar-modal">
+            <header class="modal-header-sleek">
+                <h3>Select Date or Range</h3>
+                <button id="close-date-modal" class="close-btn">&times;</button>
+            </header>
+            
+            <div class="calendar-container modal-calendar">
+                <div class="calendar-header">
+                    <button id="modal-prev-month" class="cal-nav">&lt;</button>
+                    <h3 id="modal-calendar-month-year">March 2026</h3>
+                    <button id="modal-next-month" class="cal-nav">&gt;</button>
+                </div>
+                <div class="calendar-grid-header">
+                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                </div>
+                <div id="modal-calendar-body" class="calendar-grid">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <div class="range-status-pill">
+                <span id="modal-range-hint">Tap a date to start</span>
+            </div>
+            
+            <button id="confirm-date" class="save-btn">Confirm Selection</button>
+        </div>
+    </div>
+
+    <!-- Trip Selector Modal -->
+    <div id="trip-modal" class="modal-overlay">
+        <div class="modal-content select-modal">
+            <header class="modal-header-sleek">
+                <h3>Switch Trip</h3>
+                <button id="close-trip-modal" class="close-btn">&times;</button>
+            </header>
+            <div id="trip-list-menu" class="trip-menu-list">
+                <!-- Populated via JS -->
+            </div>
+            <button id="btn-add-trip-new" class="save-btn secondary">+ Create New Trip</button>
+        </div>
     </div>
 
     <!-- Currency Modal Overlay -->
