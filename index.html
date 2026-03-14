@@ -96,6 +96,8 @@
         </nav>
 
         <main class="content">
+            <!-- ADD EXPENSE TAB -->
+            <section id="tab-log" class="tab-content active">
                 <header class="section-header tracker-header">
                     <div class="trip-info-pill" id="open-trip-selector">
                         <span id="active-trip-name">Paris 2026</span>
@@ -160,6 +162,11 @@
                     <div class="usd-preview">
                         ≈ <span id="usd-amount">0.00</span> <span id="home-symbol-label">USD</span>
                         <div class="fx-rate-subtext" id="fx-rate" style="font-size: 0.75rem; color: var(--text-dim); margin-top: 6px;">1 spent ≈ 1 home</div>
+                    </div>
+
+                    <div id="split-indicator" class="split-indicator hidden">
+                        <span class="split-icon">⚖️</span>
+                        <span id="split-text">Spreading $0.00 across 0 days</span>
                     </div>
 
                     <div class="notes-wrapper">

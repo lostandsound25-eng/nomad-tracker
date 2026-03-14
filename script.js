@@ -143,6 +143,25 @@ function init() {
             dateLabelText.innerText = "Date";
         }
         updateDailyProgress();
+        updateSplitIndicator();
+    };
+
+    const updateSplitIndicator = () => {
+        const indicator = document.getElementById('split-indicator');
+        const text = document.getElementById('split-text');
+        const rawVal = els.localInput.value.replace(/,/g, '');
+        const amount = parseFloat(rawVal) || 0;
+
+        if (state.rangeStart && state.rangeEnd && amount > 0) {
+            const start = new Date(state.rangeStart + 'T00:00:00');
+            const end = new Date(state.rangeEnd + 'T00:00:00');
+            const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            const perDay = (amount / diffDays).toFixed(2);
+            indicator.classList.remove('hidden');
+            text.innerText = `${CURRENCY_SYMBOLS[state.spendingCurrency] || ''}${amount} will be spread as ${CURRENCY_SYMBOLS[state.spendingCurrency] || ''}${perDay}/day over ${diffDays} days`;
+        } else {
+            indicator.classList.add('hidden');
+        }
     };
 
     document.getElementById('open-date-modal').addEventListener('click', () => {
@@ -266,6 +285,7 @@ function init() {
     els.localInput.addEventListener('input', () => {
         autoScaleInput();
         calculateHomeValue();
+        updateSplitIndicator();
     });
 
     els.catBtns.forEach(btn => {
@@ -398,6 +418,11 @@ async function setActiveTrip(trip) {
     els.homeSelect.value = trip.home_currency;
     els.homeLabel.innerText = trip.home_currency;
     els.settingsHomeSymbol.innerText = CURRENCY_SYMBOLS[trip.home_currency] || trip.home_currency;
+
+    // Sync the dashboard selector if it exists
+    if (els.tripSelector) {
+        els.tripSelector.value = trip.id;
+    }
     
     localStorage.setItem('nomad_home_currency', state.homeCurrency);
     localStorage.setItem('nomad_daily_budget', state.dailyBudget);
@@ -803,8 +828,16 @@ async function saveExpense() {
     const rawVal = els.localInput.value.replace(/,/g, '');
     const totalAmount = parseFloat(rawVal);
     
-    if (!totalAmount || !state.selectedCategory || !state.currentTrip) {
-        alert("Enter an amount, category, and ensure a trip is selected!");
+    if (isNaN(totalAmount) || totalAmount <= 0) {
+        alert("Please enter a valid amount!");
+        return;
+    }
+    if (!state.selectedCategory) {
+        alert("Please select a category (e.g., Stay, Lunch)!");
+        return;
+    }
+    if (!state.currentTrip) {
+        alert("No active trip found. Please select or create a trip in the Dashboard.");
         return;
     }
 
@@ -864,6 +897,8 @@ async function saveExpense() {
     // Clear range
     state.rangeStart = null;
     state.rangeEnd = null;
+    updateDailyProgress();
+    updateSplitIndicator(); // Hide indicator after save
     document.getElementById('range-selection-hint').innerText = "Tap dates to select range";
 
     fetchTripExpenses();
