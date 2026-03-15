@@ -1050,7 +1050,8 @@ async function saveExpense() {
 
     fetchTripExpenses();
     showSuccessToast("Logged!");
-    if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
+    // Note: navigator.vibrate works on Android/Chrome but is not supported on iOS Safari
+    if (navigator.vibrate) navigator.vibrate([30, 50, 30]); 
 }
 
 function showSuccessToast(message) {
@@ -1061,9 +1062,10 @@ function showSuccessToast(message) {
     msgEl.innerText = message;
     toast.classList.add('active');
 
+    // Quicker hide to feel snappier
     setTimeout(() => {
         toast.classList.remove('active');
-    }, 2500);
+    }, 1200);
 }
 
 // --- Audit & Modal ---

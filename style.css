@@ -168,6 +168,14 @@ body {
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     margin-bottom: 1.5rem;
+    position: relative; /* Base positioning */
+}
+
+/* Specific overrides */
+.entry-card {
+    border-radius: 24px;
+    padding: 2rem;
+    overflow: hidden; /* Contain the toast animation */
 }
 
 .currency-settings {
@@ -417,6 +425,8 @@ body {
     gap: 12px;
     margin-bottom: 2rem;
 }
+
+
 
 .cat-btn {
     background: var(--bg);
@@ -1532,33 +1542,30 @@ body {
 
 /* Success Toast Notification */
 .toast-notification {
-    position: fixed;
-    bottom: 100px;
+    position: absolute;
+    bottom: 0px; /* Hidden start point */
     left: 50%;
     transform: translateX(-50%);
     background: #10b981;
     color: white;
-    padding: 12px 24px;
+    padding: 8px 18px;
     border-radius: 30px;
-    font-weight: 700;
-    font-size: 0.9rem;
-    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
-    z-index: 2000;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    font-weight: 800;
+    font-size: 0.8rem;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    z-index: 1000;
     pointer-events: none;
     opacity: 0;
-    transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    visibility: hidden;
+    transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1); /* Quicker snap out */
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .toast-notification.active {
-    bottom: 120px;
+    bottom: 50%; /* Float up towards the middle amount area */
     opacity: 1;
-}
-
-.toast-icon {
-    font-size: 1.1rem;
+    visibility: visible;
 }
 
 /* Floating Success Particle (Optional) */
