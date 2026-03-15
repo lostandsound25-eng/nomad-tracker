@@ -372,9 +372,6 @@ function init() {
         const name = document.getElementById('new-trip-name').value.trim();
         const homeCurrency = document.getElementById('new-trip-home-currency').value;
         const dailyBudget = parseFloat(document.getElementById('new-trip-budget').value) || 50;
-        const party = document.getElementById('new-trip-party').value;
-        const transport = document.getElementById('new-trip-transport').value;
-        const style = document.getElementById('new-trip-style').value;
 
         if (!name) {
             alert("Please give your trip a name!");
@@ -386,9 +383,6 @@ function init() {
                 name, 
                 daily_budget: dailyBudget, 
                 home_currency: homeCurrency, 
-                travel_party: party,
-                primary_transport: transport,
-                travel_style: style,
                 created_by: state.user.id 
             }
         ]).select();
