@@ -369,6 +369,7 @@ function init() {
     });
 
     document.getElementById('btn-create-trip-confirm').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-create-trip-confirm');
         const name = document.getElementById('new-trip-name').value.trim();
         const homeCurrency = document.getElementById('new-trip-home-currency').value;
         const dailyBudget = parseFloat(document.getElementById('new-trip-budget').value) || 50;
@@ -377,6 +378,9 @@ function init() {
             alert("Please give your trip a name!");
             return;
         }
+
+        btn.disabled = true;
+        btn.innerText = "Creating...";
 
         const { data, error } = await sb.from('trips').insert([
             { 
@@ -389,20 +393,23 @@ function init() {
 
         if (error) {
             alert("Failed to create trip: " + error.message);
+            btn.disabled = false;
+            btn.innerText = "Initialize Trip";
             return;
         }
 
         if (data && data.length > 0) {
             await sb.from('trip_members').insert([{ trip_id: data[0].id, user_id: state.user.id, role: 'owner' }]);
             await fetchUserTrips();
-            // Find the newly created trip and set it active
             const newTrip = state.trips.find(t => t.id === data[0].id);
             if (newTrip) setActiveTrip(newTrip);
             
             newTripModal.classList.remove('active');
-            // Clear inputs
             document.getElementById('new-trip-name').value = '';
         }
+        
+        btn.disabled = false;
+        btn.innerText = "Initialize Trip";
     });
 
     const viewRawBtn = document.getElementById('view-raw');
@@ -411,6 +418,7 @@ function init() {
     if (els.copyBtn) els.copyBtn.addEventListener('click', copyToSheets);
 
     // Initial Auth Check & Persistence
+    // onAuthStateChange handles the initial session check automatically
     sb.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             updateAuthState(session?.user);
@@ -418,13 +426,24 @@ function init() {
             updateAuthState(null);
         }
     });
-
-    checkUser();
+    // checkUser() is no longer needed as onAuthStateChange handles the initial session check automatically
 }
 
 function renderTripMenu() {
     const list = document.getElementById('trip-list-menu');
-    list.innerHTML = state.trips.map(t => `
+    if (!list) return;
+    
+    // Use a Set to ensure unique IDs if data somehow has duplicates
+    const uniqueTrips = [];
+    const seen = new Set();
+    state.trips.forEach(t => {
+        if (!seen.has(t.id)) {
+            seen.add(t.id);
+            uniqueTrips.push(t);
+        }
+    });
+
+    list.innerHTML = uniqueTrips.map(t => `
         <div class="trip-menu-item ${state.currentTrip && state.currentTrip.id === t.id ? 'active' : ''}" onclick="selectTripFromMenu('${t.id}')">
             <span class="trip-name">${t.name}</span>
             ${state.currentTrip && state.currentTrip.id === t.id ? '<span>✓</span>' : ''}
@@ -465,6 +484,8 @@ async function setActiveTrip(trip) {
     localStorage.setItem('nomad_home_currency', state.homeCurrency);
     localStorage.setItem('nomad_daily_budget', state.dailyBudget);
 
+    renderTripMenu(); // Update checkmarks in modal
+
     // Refresh everything
     updateFxRate();
     fetchTripExpenses();
@@ -475,9 +496,20 @@ async function fetchUserTrips() {
     const { data, error } = await sb.from('trips').select('*').order('created_at', { ascending: false });
     if (error) { console.error("Error fetching trips:", error); return; }
     
-    state.trips = data;
-    if (data.length > 0) {
-        els.tripSelector.innerHTML = data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    // Filter duplicates just in case
+    const uniqueData = [];
+    const seen = new Set();
+    data.forEach(t => {
+        if (!seen.has(t.id)) {
+            seen.add(t.id);
+            uniqueData.push(t);
+        }
+    });
+
+    state.trips = uniqueData;
+    if (uniqueData.length > 0) {
+        els.tripSelector.innerHTML = uniqueData.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        renderTripMenu(); // Update the modal list too
         // If we don't have a current trip yet, or if the current trip isn't in the new list, set active to the first one
         if (!state.currentTrip || !data.find(t => t.id === state.currentTrip.id)) {
             setActiveTrip(data[0]);
@@ -491,6 +523,13 @@ async function fetchUserTrips() {
 }
 
 async function createDemoTrip() {
+    // Check if any trip already exists to prevent double auto-creation
+    const { count } = await sb.from('trips').select('*', { count: 'exact', head: true });
+    if (count > 0) { 
+        fetchUserTrips();
+        return; 
+    }
+
     const { data: tripData, error: tripError } = await sb.from('trips').insert([
         { name: 'My Adventure', daily_budget: 50, home_currency: 'USD', created_by: state.user.id }
     ]).select();
