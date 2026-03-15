@@ -1049,7 +1049,21 @@ async function saveExpense() {
     document.getElementById('range-selection-hint').innerText = "Tap dates to select range";
 
     fetchTripExpenses();
-    if (navigator.vibrate) navigator.vibrate(50);
+    showSuccessToast("Logged!");
+    if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
+}
+
+function showSuccessToast(message) {
+    const toast = document.getElementById('success-toast');
+    const msgEl = document.getElementById('toast-message');
+    if (!toast || !msgEl) return;
+
+    msgEl.innerText = message;
+    toast.classList.add('active');
+
+    setTimeout(() => {
+        toast.classList.remove('active');
+    }, 2500);
 }
 
 // --- Audit & Modal ---
