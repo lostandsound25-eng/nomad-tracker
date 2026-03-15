@@ -1049,23 +1049,17 @@ async function saveExpense() {
     document.getElementById('range-selection-hint').innerText = "Tap dates to select range";
 
     fetchTripExpenses();
-    showSuccessToast("Logged!");
-    // Note: navigator.vibrate works on Android/Chrome but is not supported on iOS Safari
-    if (navigator.vibrate) navigator.vibrate([30, 50, 30]); 
-}
-
-function showSuccessToast(message) {
-    const toast = document.getElementById('success-toast');
-    const msgEl = document.getElementById('toast-message');
-    if (!toast || !msgEl) return;
-
-    msgEl.innerText = message;
-    toast.classList.add('active');
-
-    // Quicker hide to feel snappier
-    setTimeout(() => {
-        toast.classList.remove('active');
-    }, 1200);
+    
+    // Simple button feedback
+    const saveBtn = document.getElementById('save-expense');
+    if (saveBtn) {
+        saveBtn.innerText = "Logged!";
+        saveBtn.classList.add('success-mode');
+        setTimeout(() => {
+            saveBtn.innerText = "Save to Log";
+            saveBtn.classList.remove('success-mode');
+        }, 1500);
+    }
 }
 
 // --- Audit & Modal ---

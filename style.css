@@ -1540,45 +1540,7 @@ body {
     letter-spacing: 2px;
 }
 
-/* Success Toast Notification */
-.toast-notification {
-    position: absolute;
-    bottom: 0px; /* Hidden start point */
-    left: 50%;
-    transform: translateX(-50%);
-    background: #10b981;
-    color: white;
-    padding: 8px 18px;
-    border-radius: 30px;
-    font-weight: 800;
-    font-size: 0.8rem;
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-    z-index: 1000;
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1); /* Quicker snap out */
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.toast-notification.active {
-    bottom: 50%; /* Float up towards the middle amount area */
-    opacity: 1;
-    visibility: visible;
-}
-
-/* Floating Success Particle (Optional) */
-@keyframes floatUpFade {
-    0% { transform: translateY(0); opacity: 0; }
-    20% { opacity: 1; }
-    100% { transform: translateY(-50px); opacity: 0; }
-}
-
-.floating-success {
-    position: absolute;
-    color: var(--primary);
-    font-weight: 800;
-    pointer-events: none;
-    animation: floatUpFade 1s ease-out forwards;
+.save-btn.success-mode {
+    background: #059669; /* Slightly darker green for success state */
+    transform: scale(0.98);
 }
