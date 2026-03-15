@@ -1485,18 +1485,25 @@ body {
 .join-code-pill {
     background: var(--primary-dim);
     color: var(--primary-hover);
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 0.85rem;
     font-weight: 800;
     cursor: pointer;
     transition: all 0.2s;
+    border: 1px solid var(--primary-hover);
+    display: inline-block;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.join-code-pill:hover {
+    background: var(--primary-hover);
+    color: white;
 }
 
 .join-code-pill:active {
     transform: scale(0.95);
-    background: var(--primary-hover);
-    color: white;
 }
 
 .share-info-text {

@@ -275,17 +275,19 @@
                 </header>
 
                 <div class="settings-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h3 style="margin: 0;">Active Trip</h3>
-                        <span id="trip-join-code-badge" class="join-code-pill" title="Invite a partner">Code: ---</span>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1rem;">Active Trip</h3>
+                            <p style="font-size: 0.65rem; color: var(--text-dim); margin-top: 2px;">Invite a partner to track together</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span id="trip-join-code-badge" class="join-code-pill">---</span>
+                        </div>
                     </div>
                     <div class="trip-selector-row">
                         <select id="trip-selector" class="currency-select">
                             <!-- Populated via JS -->
                         </select>
-                    </div>
-                    <div id="share-trip-section" class="share-info-text">
-                        Tap the code above to invite a partner!
                     </div>
                 </div>
 

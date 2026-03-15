@@ -461,12 +461,12 @@ function init() {
 
     // Copy Join Code to Clipboard
     els.joinCodeBadge.addEventListener('click', () => {
-        const codeText = els.joinCodeBadge.innerText.replace('Code: ', '');
-        if (codeText === '---') return;
+        const codeText = els.joinCodeBadge.innerText.trim();
+        if (codeText === '---' || codeText === 'Copied!') return;
         
         navigator.clipboard.writeText(codeText).then(() => {
             const original = els.joinCodeBadge.innerText;
-            els.joinCodeBadge.innerText = "Copied!";
+            els.joinCodeBadge.innerText = "COPIED!";
             setTimeout(() => els.joinCodeBadge.innerText = original, 1500);
         });
     });
@@ -537,7 +537,7 @@ async function setActiveTrip(trip) {
     
     // Display Join Code
     if (els.joinCodeBadge) {
-        els.joinCodeBadge.innerText = trip.join_code ? `Code: ${trip.join_code}` : 'Code: ---';
+        els.joinCodeBadge.innerText = trip.join_code || '---';
     }
 
     // Sync the dashboard selector if it exists
