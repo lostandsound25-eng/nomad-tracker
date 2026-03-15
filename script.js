@@ -972,6 +972,13 @@ function calculateHomeValue() {
 }
 
 async function saveExpense() {
+    console.log("Save triggered...");
+    const btn = els.saveBtn;
+    if (!btn) {
+        console.error("Save button element (els.saveBtn) not found!");
+        return;
+    }
+
     const rawVal = els.localInput.value.replace(/,/g, '');
     const totalAmount = parseFloat(rawVal);
     
@@ -990,75 +997,82 @@ async function saveExpense() {
 
     const newExpenses = [];
     
-    if (state.rangeStart && state.rangeEnd) {
-        // Multi-day split
-        const start = new Date(state.rangeStart + 'T00:00:00');
-        const end = new Date(state.rangeEnd + 'T00:00:00');
-        const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
-        
-        const amountPerDay = totalAmount / diffDays;
-        const homeAmountPerDay = (totalAmount * state.fxRateToHome) / diffDays;
+    try {
+        if (state.rangeStart && state.rangeEnd) {
+            const start = new Date(state.rangeStart + 'T00:00:00');
+            const end = new Date(state.rangeEnd + 'T00:00:00');
+            const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            
+            const amountPerDay = totalAmount / diffDays;
+            const homeAmountPerDay = (totalAmount * state.fxRateToHome) / diffDays;
 
-        for (let i = 0; i < diffDays; i++) {
-            const d = new Date(start);
-            d.setDate(d.getDate() + i);
+            for (let i = 0; i < diffDays; i++) {
+                const d = new Date(start);
+                d.setDate(d.getDate() + i);
+                newExpenses.push({
+                    trip_id: state.currentTrip.id,
+                    user_id: state.user.id,
+                    local_amount: amountPerDay,
+                    local_currency: state.spendingCurrency,
+                    home_amount: homeAmountPerDay,
+                    fx_rate: state.fxRateToHome,
+                    category: state.selectedCategory,
+                    note: els.notesInput.value.trim() + ` (Split ${i+1}/${diffDays})`,
+                    spent_at: d.toISOString()
+                });
+            }
+        } else {
+            const d = new Date(state.selectedDate + 'T00:00:00');
             newExpenses.push({
                 trip_id: state.currentTrip.id,
                 user_id: state.user.id,
-                local_amount: amountPerDay,
+                local_amount: totalAmount,
                 local_currency: state.spendingCurrency,
-                home_amount: homeAmountPerDay,
+                home_amount: totalAmount * state.fxRateToHome,
                 fx_rate: state.fxRateToHome,
                 category: state.selectedCategory,
-                note: els.notesInput.value.trim() + ` (Split ${i+1}/${diffDays})`,
+                note: els.notesInput.value.trim(),
                 spent_at: d.toISOString()
             });
         }
-    } else {
-        // Single day
-        const d = new Date(state.selectedDate + 'T00:00:00');
-        newExpenses.push({
-            trip_id: state.currentTrip.id,
-            user_id: state.user.id,
-            local_amount: totalAmount,
-            local_currency: state.spendingCurrency,
-            home_amount: totalAmount * state.fxRateToHome,
-            fx_rate: state.fxRateToHome,
-            category: state.selectedCategory,
-            note: els.notesInput.value.trim(),
-            spent_at: d.toISOString()
-        });
-    }
 
-    const { error } = await sb.from('expenses').insert(newExpenses);
-    if (error) { alert("Failed to save: " + error.message); return; }
+        const { error } = await sb.from('expenses').insert(newExpenses);
+        if (error) throw error;
 
-    // Reset UI
-    els.localInput.value = '';
-    autoScaleInput();
-    els.usdOutput.innerText = '0.00';
-    els.notesInput.value = '';
-    els.catBtns.forEach(b => b.classList.remove('selected'));
-    state.selectedCategory = null;
-    
-    // Clear range
-    state.rangeStart = null;
-    state.rangeEnd = null;
-    updateDailyProgress();
-    updateSplitIndicator(); // Hide indicator after save
-    document.getElementById('range-selection-hint').innerText = "Tap dates to select range";
+        console.log("Successfully saved to Supabase.");
 
-    fetchTripExpenses();
-    
-    // Simple button feedback
-    const saveBtn = document.getElementById('save-expense');
-    if (saveBtn) {
-        saveBtn.innerText = "Logged!";
-        saveBtn.classList.add('success-mode');
+        // 1. Immediate Visual Feedback
+        const originalText = btn.innerText;
+        btn.innerText = "Logged!";
+        btn.classList.add('success-mode');
+
+        // 2. Reset UI
+        els.localInput.value = '';
+        autoScaleInput();
+        els.usdOutput.innerText = '0.00';
+        els.notesInput.value = '';
+        els.catBtns.forEach(b => b.classList.remove('selected'));
+        state.selectedCategory = null;
+        state.rangeStart = null;
+        state.rangeEnd = null;
+        
+        updateDailyProgress();
+        updateSplitIndicator();
+        
+        const hint = document.getElementById('range-selection-hint');
+        if (hint) hint.innerText = "Tap dates to select range";
+
+        fetchTripExpenses();
+
+        // 3. Revert button text
         setTimeout(() => {
-            saveBtn.innerText = "Save to Log";
-            saveBtn.classList.remove('success-mode');
+            btn.innerText = originalText;
+            btn.classList.remove('success-mode');
         }, 1500);
+
+    } catch (err) {
+        console.error("Save error:", err);
+        alert("Failed to save: " + (err.message || "Unknown error"));
     }
 }
 
