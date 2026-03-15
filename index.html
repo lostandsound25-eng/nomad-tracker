@@ -275,11 +275,17 @@
                 </header>
 
                 <div class="settings-card">
-                    <h3>Switch Active Trip</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="margin: 0;">Active Trip</h3>
+                        <span id="trip-join-code-badge" class="join-code-pill" title="Invite a partner">Code: ---</span>
+                    </div>
                     <div class="trip-selector-row">
                         <select id="trip-selector" class="currency-select">
                             <!-- Populated via JS -->
                         </select>
+                    </div>
+                    <div id="share-trip-section" class="share-info-text">
+                        Tap the code above to invite a partner!
                     </div>
                 </div>
 
@@ -439,6 +445,12 @@
             <div id="trip-list-menu" class="trip-menu-list">
                 <!-- Populated via JS -->
             </div>
+            
+            <div class="join-trip-section">
+                <input type="text" id="join-code-input" placeholder="Enter Join Code (e.g. A1B2C3)" class="subtle-input">
+                <button id="btn-join-trip" class="save-btn secondary">Join Trip</button>
+            </div>
+
             <button id="open-new-trip-modal-btn" class="save-btn secondary">+ Plan New Trip</button>
         </div>
     </div>

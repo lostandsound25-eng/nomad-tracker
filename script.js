@@ -118,6 +118,7 @@ function init() {
 
         activeTripName: document.getElementById('active-trip-name'),
         tripSelector: document.getElementById('trip-selector'),
+        joinCodeBadge: document.getElementById('trip-join-code-badge'),
         copyBtn: document.querySelector('.copy-btn') // for Insights
     };
 
@@ -412,6 +413,64 @@ function init() {
         btn.innerText = "Initialize Trip";
     });
 
+    // Join Trip Logic
+    document.getElementById('btn-join-trip').addEventListener('click', async () => {
+        const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+        const btn = document.getElementById('btn-join-trip');
+        
+        if (!code) {
+            alert("Please enter a join code!");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "Joining...";
+
+        // 1. Find the trip with this code
+        const { data: tripData, error: tripLookupError } = await sb
+            .from('trips')
+            .select('*')
+            .eq('join_code', code)
+            .single();
+
+        if (tripLookupError || !tripData) {
+            alert("Invalid join code. Please check with the trip owner.");
+            btn.disabled = false;
+            btn.innerText = "Join Trip";
+            return;
+        }
+
+        // 2. Add user to trip_members
+        const { error: joinError } = await sb.from('trip_members').insert([
+            { trip_id: tripData.id, user_id: state.user.id, role: 'member' }
+        ]);
+
+        if (joinError && joinError.code !== '23505') { // 23505 is "already a member"
+            alert("Failed to join trip: " + joinError.message);
+        } else {
+            alert("Successfully joined " + tripData.name + "!");
+            document.getElementById('join-code-input').value = '';
+            document.getElementById('trip-modal').classList.remove('active');
+            await fetchUserTrips();
+            setActiveTrip(tripData);
+        }
+
+        btn.disabled = false;
+        btn.innerText = "Join Trip";
+    });
+
+    // Copy Join Code to Clipboard
+    els.joinCodeBadge.addEventListener('click', () => {
+        const codeText = els.joinCodeBadge.innerText.replace('Code: ', '');
+        if (codeText === '---') return;
+        
+        navigator.clipboard.writeText(codeText).then(() => {
+            const original = els.joinCodeBadge.innerText;
+            els.joinCodeBadge.innerText = "Copied!";
+            setTimeout(() => els.joinCodeBadge.innerText = original, 1500);
+        });
+    });
+
     const viewRawBtn = document.getElementById('view-raw');
     if (viewRawBtn) viewRawBtn.onclick = openAuditModal;
 
@@ -475,6 +534,11 @@ async function setActiveTrip(trip) {
     els.homeSelect.value = trip.home_currency;
     els.homeLabel.innerText = trip.home_currency;
     els.settingsHomeSymbol.innerText = CURRENCY_SYMBOLS[trip.home_currency] || trip.home_currency;
+    
+    // Display Join Code
+    if (els.joinCodeBadge) {
+        els.joinCodeBadge.innerText = trip.join_code ? `Code: ${trip.join_code}` : 'Code: ---';
+    }
 
     // Sync the dashboard selector if it exists
     if (els.tripSelector) {

@@ -1480,3 +1480,45 @@ body {
 .auth-overlay {
     z-index: 1000;
 }
+
+/* Join Trip Enhancements */
+.join-code-pill {
+    background: var(--primary-dim);
+    color: var(--primary-hover);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.join-code-pill:active {
+    transform: scale(0.95);
+    background: var(--primary-hover);
+    color: white;
+}
+
+.share-info-text {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 10px;
+    text-align: center;
+}
+
+.join-trip-section {
+    margin: 15px 0;
+    padding: 15px 0;
+    border-top: 1px dashed var(--border);
+    border-bottom: 1px dashed var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#join-code-input {
+    text-align: center;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
