@@ -22,61 +22,53 @@
    LOGGED ANIMATION SYSTEM
    ============================================================ */
 
-/* Ghost card glides and shrinks toward the Log tab */
-@keyframes cardFlyToTab {
+/* Ghost card drops straight down into the Log tab */
+@keyframes cardDropToTab {
     0% {
-        transform: translate(0, 0) scale(1) rotate(0deg);
-        filter: blur(0);
+        transform: translate(0, 0) scale(1);
+        filter: brightness(1);
         opacity: 1;
     }
-    20% {
-        transform: translate(0, -20px) scale(0.9) rotate(-2deg);
-    }
-    50% {
-        transform: translate(calc(var(--fly-x) * 0.5), calc(var(--fly-y) * 0.4 - 100px)) scale(0.6) rotate(15deg);
-        filter: blur(1px);
+    40% {
+        transform: translate(0, 20px) scale(0.95);
+        filter: brightness(1.1);
+        opacity: 1;
     }
     100% {
-        transform: translate(var(--fly-x), var(--fly-y)) scale(0.02) rotate(30deg);
-        filter: blur(2px);
+        transform: translate(var(--fly-x), var(--fly-y)) scale(0.05);
+        filter: brightness(0.5);
         opacity: 0;
     }
 }
 
-
-.card-fly-ghost {
+.card-drop-ghost {
     position: fixed;
     z-index: 9999;
     pointer-events: none;
     border-radius: 20px;
-    animation: cardFlyToTab 1.1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation: cardDropToTab 0.6s cubic-bezier(0.5, 0, 0.7, 0.1) forwards;
     transform-origin: center center;
-    box-shadow: 0 16px 48px rgba(16, 185, 129, 0.25);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     background: white;
 }
 
-/* Original card folds down and disappears */
-@keyframes cardFoldExit {
+
+/* Original card fades and scales down slightly as it's replaced */
+@keyframes cardFadeOut {
     0% {
-        transform: perspective(1000px) rotateX(0deg) translateY(0);
-        opacity: 1;
-    }
-    40% {
-        transform: perspective(1000px) rotateX(-20deg) translateY(-10px);
+        transform: scale(1);
         opacity: 1;
     }
     100% {
-        transform: perspective(1000px) rotateX(-90deg) translateY(-50px);
+        transform: scale(0.9);
         opacity: 0;
     }
 }
 
-
-.card-fold-exit {
-    animation: cardFoldExit 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    transform-origin: top center;
-    overflow: hidden;
+.card-fade-out {
+    animation: cardFadeOut 0.2s ease-out forwards;
 }
+
 
 /* Fresh empty card slides up into place */
 @keyframes cardSlideIn {

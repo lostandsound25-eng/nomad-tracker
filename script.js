@@ -1286,7 +1286,7 @@ async function saveExpense() {
         if (hint) hint.innerText = "Tap dates to select range";
         fetchTripExpenses();
 
-        // ── CINEMATIC LOGGED ANIMATION ──────────────────────────────
+        // ── DROPPING LOGGED ANIMATION ──────────────────────────────
         const entryCard = document.querySelector('.entry-card');
         const logTabBtn = document.querySelector('.tab-btn[onclick*="history"]');
 
@@ -1302,44 +1302,39 @@ async function saveExpense() {
             const srcX = cardRect.left + cardRect.width / 2;
             const srcY = cardRect.top + cardRect.height / 2;
 
-            // Delta (ghost starts at card position, needs to end at tab)
+            // Delta
             const flyX = targetX - srcX;
             const flyY = targetY - srcY;
 
-            // 1. Create ghost clone fixed over the card
+            // 1. Create ghost clone
             const ghost = entryCard.cloneNode(true);
-            ghost.className = 'entry-card card-fly-ghost';
+            ghost.className = 'entry-card card-drop-ghost';
             ghost.style.left = cardRect.left + 'px';
             ghost.style.top = cardRect.top + 'px';
             ghost.style.width = cardRect.width + 'px';
             ghost.style.height = cardRect.height + 'px';
             ghost.style.setProperty('--fly-x', flyX + 'px');
             ghost.style.setProperty('--fly-y', flyY + 'px');
-            // 2. Fold the real card and launch the ghost
-            entryCard.classList.add('card-fold-exit');
             
-            // Give the fold a tiny head start for that "lifting off" feel
-            setTimeout(() => {
-                document.body.appendChild(ghost);
-            }, 50);
+            // 2. Fade the real card and launch the ghost
+            entryCard.classList.add('card-fade-out');
+            document.body.appendChild(ghost);
 
-            // 3. Pulse Log tab precisely when ghost "hits" it
-            // The animation is 1.1s, it hits the tab at exactly 1.1s
+            // 3. Pulse Log tab when ghost hits it (0.6s animation)
             setTimeout(() => {
                 logTabBtn.classList.add('tab-pulse-arrive');
-                // Haptic-like vibe (visual only)
                 if (window.navigator && window.navigator.vibrate) {
                     window.navigator.vibrate(15);
                 }
-                setTimeout(() => logTabBtn.classList.remove('tab-pulse-arrive'), 600);
-            }, 1050);
+                setTimeout(() => logTabBtn.classList.remove('tab-pulse-arrive'), 500);
+            }, 550);
 
-            // 4. After ghost lands: clean up, reset form, slide fresh card in
+            // 4. Cleanup and Reset
             ghost.addEventListener('animationend', () => {
                 ghost.remove();
-                entryCard.classList.remove('card-fold-exit');
+                entryCard.classList.remove('card-fade-out');
 
-                // Reset form contents
+                // Reset form
                 els.localInput.value = '';
                 autoScaleInput();
                 els.usdOutput.innerText = '0.00';
@@ -1352,8 +1347,6 @@ async function saveExpense() {
 
                 // Slide fresh card in
                 entryCard.classList.add('card-slide-in');
-                
-                // Workflow improvement: Auto-focus the input for the NEXT expense
                 setTimeout(() => {
                     entryCard.classList.remove('card-slide-in');
                     els.localInput.focus();
@@ -1361,6 +1354,7 @@ async function saveExpense() {
 
                 // Quick "Logged!" flash on button
                 btn.innerText = '✓  Logged!';
+
 
                 btn.classList.add('success-mode');
                 setTimeout(() => {
