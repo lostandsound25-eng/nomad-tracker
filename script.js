@@ -1047,16 +1047,42 @@ async function updateFxRate() {
     }
 }
 
-function updateDisplayDate(val) {
-    const d = new Date(val + 'T00:00:00');
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    if (els.displayDateText) els.displayDateText.innerText = `${months[d.getMonth()]} ${d.getDate()}`;
-    state.selectedDate = val;
+function formatDateShort(isoStr) {
+    if (!isoStr) return "";
+    const d = new Date(isoStr + 'T12:00:00');
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
+}
 
-    if (val === getLocalYYYYMMDD()) {
-        if (els.dateLabelText) els.dateLabelText.innerText = "Today";
+function updateDisplayDate(val) {
+    state.selectedDate = val;
+    const isToday = (val === getLocalYYYYMMDD());
+
+    if (state.rangeStart && state.rangeEnd) {
+        if (els.dateLabelText) els.dateLabelText.innerText = "Range";
+        if (els.displayDateText) {
+            els.displayDateText.innerText = `${formatDateShort(state.rangeStart)} - ${formatDateShort(state.rangeEnd)}`;
+        }
     } else {
-        if (els.dateLabelText) els.dateLabelText.innerText = "Date";
+        if (isToday) {
+            if (els.dateLabelText) els.dateLabelText.innerText = "Today";
+            if (els.displayDateText) {
+                const d = new Date(val + 'T12:00:00');
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                els.displayDateText.innerText = `${months[d.getMonth()]} ${d.getDate()}`;
+            }
+        } else {
+            if (els.dateLabelText) els.dateLabelText.innerText = "Date";
+            if (els.displayDateText) els.displayDateText.innerText = formatDateShort(val);
+        }
+    }
+
+    if (els.displayDateText) {
+        // Ensure color/style consistency
+        els.displayDateText.style.color = 'var(--text)';
+        els.displayDateText.style.fontSize = (state.rangeStart && state.rangeEnd) ? '0.8rem' : '0.95rem';
     }
     updateDailyProgress();
     updateSplitIndicator();
@@ -1141,12 +1167,10 @@ async function saveExpense() {
             // Fix for Date bug: 
             // If the user is logging for TODAY, use the current precise time.
             // If they picked a past/future date, use Noon to avoid TZ-slip issues.
-            let d;
-            if (state.selectedDate === getLocalYYYYMMDD()) {
-                d = new Date();
-            } else {
-                d = new Date(state.selectedDate + 'T12:00:00');
-            }
+            const d = (state.selectedDate === getLocalYYYYMMDD()) ? new Date() : new Date(state.selectedDate + 'T12:00:00');
+            const localTimeStr = new Intl.DateTimeFormat('en-US', {
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            }).format(new Date());
 
             newExpenses.push({
                 trip_id: state.currentTrip.id,
@@ -1158,7 +1182,8 @@ async function saveExpense() {
                 category: state.selectedCategory,
                 note: els.notesInput.value.trim(),
                 spent_at: d.toISOString(),
-                paid_by: state.user.id
+                paid_by: state.user.id,
+                metadata: { local_time_audited: localTimeStr } // Adding extra clarity for user DB views
             });
         }
 
@@ -1792,12 +1817,13 @@ function renderModalCalendar() {
             const hint = document.getElementById('modal-range-hint');
             if (state.rangeStart && state.rangeEnd) {
                 const diff = Math.round((new Date(state.rangeEnd) - new Date(state.rangeStart)) / (1000 * 60 * 60 * 24)) + 1;
-                hint.innerText = `${diff} days selected`;
+                hint.innerText = `Range selected: ${diff} days`;
             } else if (state.rangeStart) {
-                hint.innerText = `Starting from ${state.rangeStart}...`;
+                hint.innerText = "Tap an end date to create a range";
             } else {
-                hint.innerText = `Selected: ${key}`;
+                hint.innerText = "Tap a date to start";
             }
+            updateDisplayDate(state.selectedDate);
         };
         body.appendChild(div);
     }
