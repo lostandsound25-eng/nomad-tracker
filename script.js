@@ -1266,22 +1266,8 @@ async function saveExpense() {
             console.log("Successfully saved to Supabase.");
         }
 
-        // 1. Immediate Visual Feedback
+        // Optimistic UI update — happens immediately so dashboard updates at once
         const originalText = btn.innerText;
-        btn.innerText = "Logged!";
-        btn.classList.add('success-mode');
-
-        // 2. Reset UI
-        els.localInput.value = '';
-        autoScaleInput();
-        els.usdOutput.innerText = '0.00';
-        els.notesInput.value = '';
-        els.catBtns.forEach(b => b.classList.remove('selected'));
-        state.selectedCategory = null;
-        state.rangeStart = null;
-        state.rangeEnd = null;
-
-        // 3. Update history immediately for UI lag-free feel (Optimistic UI)
         const uiExtras = newExpenses.map(e => ({
             id: 'temp-' + Date.now() + Math.random(),
             date: e.spent_at,
@@ -1293,21 +1279,100 @@ async function saveExpense() {
             note: e.note
         }));
         state.history = [...uiExtras, ...state.history];
-
         renderHistory();
-        updateDailyProgress(); // NOW it will reflect the new dollars!
+        updateDailyProgress();
         updateSplitIndicator();
-
         const hint = document.getElementById('range-selection-hint');
         if (hint) hint.innerText = "Tap dates to select range";
-
         fetchTripExpenses();
 
-        // 4. Revert button text
-        setTimeout(() => {
-            btn.innerText = originalText;
-            btn.classList.remove('success-mode');
-        }, 2000);
+        // ── CINEMATIC LOGGED ANIMATION ──────────────────────────────
+        const entryCard = document.querySelector('.entry-card');
+        const logTabBtn = document.querySelector('.tab-btn[onclick*="history"]');
+
+        if (entryCard && logTabBtn) {
+            const cardRect  = entryCard.getBoundingClientRect();
+            const tabRect   = logTabBtn.getBoundingClientRect();
+
+            // Target: centre of Log tab icon
+            const targetX = tabRect.left + tabRect.width  / 2;
+            const targetY = tabRect.top  + tabRect.height / 2;
+
+            // Source: centre of entry card
+            const srcX = cardRect.left + cardRect.width  / 2;
+            const srcY = cardRect.top  + cardRect.height / 2;
+
+            // Delta (ghost starts at card position, needs to end at tab)
+            const flyX = targetX - srcX;
+            const flyY = targetY - srcY;
+
+            // 1. Create ghost clone fixed over the card
+            const ghost = entryCard.cloneNode(true);
+            ghost.className = 'entry-card card-fly-ghost';
+            ghost.style.left   = cardRect.left + 'px';
+            ghost.style.top    = cardRect.top  + 'px';
+            ghost.style.width  = cardRect.width  + 'px';
+            ghost.style.height = cardRect.height + 'px';
+            ghost.style.setProperty('--fly-x', flyX + 'px');
+            ghost.style.setProperty('--fly-y', flyY + 'px');
+            document.body.appendChild(ghost);
+
+            // 2. Fold out the real card immediately
+            entryCard.classList.add('card-fold-exit');
+
+            // 3. Pulse Log tab when ghost is ~75% through its journey
+            setTimeout(() => {
+                logTabBtn.classList.add('tab-pulse-arrive');
+                setTimeout(() => logTabBtn.classList.remove('tab-pulse-arrive'), 600);
+            }, 800);
+
+            // 4. After ghost lands: clean up, reset form, slide fresh card in
+            ghost.addEventListener('animationend', () => {
+                ghost.remove();
+                entryCard.classList.remove('card-fold-exit');
+
+                // Reset form contents
+                els.localInput.value = '';
+                autoScaleInput();
+                els.usdOutput.innerText = '0.00';
+                els.notesInput.value = '';
+                els.catBtns.forEach(b => b.classList.remove('selected'));
+                state.selectedCategory = null;
+                state.rangeStart = null;
+                state.rangeEnd = null;
+                updateDisplayDate(getLocalYYYYMMDD());
+
+                // Slide fresh card in
+                entryCard.classList.add('card-slide-in');
+                setTimeout(() => entryCard.classList.remove('card-slide-in'), 500);
+
+                // Quick "Logged!" flash on button
+                btn.innerText = '✓  Logged!';
+                btn.classList.add('success-mode');
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.classList.remove('success-mode');
+                }, 1800);
+            }, { once: true });
+
+        } else {
+            // Fallback if DOM elements not found
+            btn.innerText = '✓  Logged!';
+            btn.classList.add('success-mode');
+            els.localInput.value = '';
+            autoScaleInput();
+            els.usdOutput.innerText = '0.00';
+            els.notesInput.value = '';
+            els.catBtns.forEach(b => b.classList.remove('selected'));
+            state.selectedCategory = null;
+            state.rangeStart = null;
+            state.rangeEnd = null;
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.remove('success-mode');
+            }, 2000);
+        }
+
 
     } catch (err) {
         console.error("Save error:", err);
