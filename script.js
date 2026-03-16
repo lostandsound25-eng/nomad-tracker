@@ -49,6 +49,13 @@ if (state.history.length === 0) {
 }
 
 // Utils
+function formatAmt(amt) {
+    if (amt >= 1000) {
+        return amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+    return amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function getLocalYYYYMMDD(date = new Date()) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -145,7 +152,14 @@ function init() {
 
         // Offline UI
         offlineBadge: document.getElementById('offline-status-badge'),
-        sysStatus: document.getElementById('offline-status-text')
+        sysStatus: document.getElementById('offline-status-text'),
+
+        // Added for dynamic toggle UI
+        toggleHomeCode: document.getElementById('toggle-home-code'),
+        toggleSpendingCode: document.getElementById('toggle-spending-code'),
+        budgetStatusLabel: document.getElementById('budget-status-label'),
+        dailyProgressCard: document.querySelector('.daily-progress-card'),
+        progressPercentLabel: document.getElementById('progress-percent-label')
     };
 
     // Network Event Listeners
@@ -1124,7 +1138,16 @@ async function saveExpense() {
                 });
             }
         } else {
-            const d = new Date(state.selectedDate + 'T00:00:00');
+            // Fix for Date bug: 
+            // If the user is logging for TODAY, use the current precise time.
+            // If they picked a past/future date, use Noon to avoid TZ-slip issues.
+            let d;
+            if (state.selectedDate === getLocalYYYYMMDD()) {
+                d = new Date();
+            } else {
+                d = new Date(state.selectedDate + 'T12:00:00');
+            }
+
             newExpenses.push({
                 trip_id: state.currentTrip.id,
                 user_id: state.user.id,
@@ -1176,10 +1199,7 @@ async function saveExpense() {
         state.rangeStart = null;
         state.rangeEnd = null;
 
-        updateDailyProgress();
-        updateSplitIndicator();
-
-        // 3. Update history immediately for UI lag-free feel
+        // 3. Update history immediately for UI lag-free feel (Optimistic UI)
         const uiExtras = newExpenses.map(e => ({
             id: 'temp-' + Date.now() + Math.random(),
             date: e.spent_at,
@@ -1191,18 +1211,21 @@ async function saveExpense() {
             note: e.note
         }));
         state.history = [...uiExtras, ...state.history];
+        
         renderHistory();
+        updateDailyProgress(); // NOW it will reflect the new dollars!
+        updateSplitIndicator();
 
         const hint = document.getElementById('range-selection-hint');
         if (hint) hint.innerText = "Tap dates to select range";
 
         fetchTripExpenses();
 
-        // 3. Revert button text
+        // 4. Revert button text
         setTimeout(() => {
             btn.innerText = originalText;
             btn.classList.remove('success-mode');
-        }, 1500);
+        }, 2000);
 
     } catch (err) {
         console.error("Save error:", err);
@@ -1546,24 +1569,50 @@ function updateDailyProgress() {
         sym = CURRENCY_SYMBOLS[state.spendingCurrency] || state.spendingCurrency;
     }
 
-    const remaining = Math.max(0, budget - spentToday);
-
-    const formatAmt = (amt) => {
-        if (amt >= 1000) {
-            return amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-        }
-        return amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
+    const isOver = spentToday > budget;
+    const diff = Math.abs(budget - spentToday);
 
     if (els.todaySpent) els.todaySpent.innerText = `${sym}${formatAmt(spentToday)}`;
-    if (els.todayRemaining) els.todayRemaining.innerText = `${sym}${formatAmt(remaining)}`;
+    if (els.todayRemaining) {
+        els.todayRemaining.innerText = `${sym}${formatAmt(diff)}`;
+        if (els.budgetStatusLabel) {
+            els.budgetStatusLabel.innerText = isOver ? "Over Budget" : "Remaining";
+        }
+    }
+    
+    // Add red theme if over budget
+    if (els.dailyProgressCard) {
+        if (isOver) {
+            els.dailyProgressCard.classList.add('over-budget');
+        } else {
+            els.dailyProgressCard.classList.remove('over-budget');
+        }
+    }
+
     if (els.miniBudgetSymbol) els.miniBudgetSymbol.innerText = sym;
     if (els.budgetInput) els.budgetInput.value = Math.round(budget);
 
+    // Update Toggle UI active states
+    if (els.toggleHomeCode && els.toggleSpendingCode) {
+        if (state.progressCurrency === 'home') {
+            els.toggleHomeCode.classList.add('active');
+            els.toggleSpendingCode.classList.remove('active');
+        } else {
+            els.toggleHomeCode.classList.remove('active');
+            els.toggleSpendingCode.classList.add('active');
+        }
+        els.toggleHomeCode.innerText = state.homeCurrency;
+        els.toggleSpendingCode.innerText = state.spendingCurrency;
+    }
+
     let percent = budget > 0 ? (spentToday / budget) * 100 : 0;
+    const rawPercent = percent;
     if (percent > 100) percent = 100;
 
     els.todayProgressFill.style.width = `${percent}%`;
+    if (els.progressPercentLabel) {
+        els.progressPercentLabel.innerText = `${Math.round(rawPercent)}%`;
+    }
 
     if (percent >= 100) {
         els.todayProgressFill.style.backgroundColor = 'var(--danger)';

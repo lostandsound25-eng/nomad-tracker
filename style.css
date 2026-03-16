@@ -119,19 +119,24 @@ body {
     align-items: center;
 }
 
-/* Offline Badge */
+/* Offline Badge - Floating absolute so it doesn't push the trip pill */
 .offline-badge {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
     display: flex;
     align-items: center;
     gap: 6px;
     background: #fee2e2;
     color: #ef4444;
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 99px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
     transition: all 0.3s ease;
+    z-index: 5;
 }
 
 .offline-badge.syncing {
@@ -247,12 +252,13 @@ body {
     background: var(--bg);
     border: 1px solid var(--border);
     color: var(--text);
-    padding: 10px;
+    padding: 0 10px;
     border-radius: 12px;
     font-size: 0.85rem;
     font-weight: 600;
     outline: none;
     width: 100%;
+    height: 40px; /* Explicit height to match date */
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
@@ -281,18 +287,35 @@ body {
 
 .progress-bar-bg-large {
     flex: 1;
-    height: 14px;
+    height: 18px; /* Slightly taller for text */
     background: var(--bg);
-    border-radius: 7px;
+    border-radius: 9px;
     overflow: hidden;
     border: 1px solid var(--border);
+    position: relative; /* Anchor for percentage */
 }
 
 .progress-bar-fill-large {
     height: 100%;
     background: var(--primary);
-    border-radius: 7px;
+    border-radius: 9px;
     transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.progress-percent-badge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--text);
+    pointer-events: none;
+    mix-blend-mode: color-burn; /* Make it readable on both fill and bg */
 }
 
 /* Consolidated UI */
@@ -305,34 +328,82 @@ body {
     margin-bottom: 12px;
 }
 
-.progress-labels-new {
+.progress-stats-container {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+    background: white;
+    padding: 12px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
 }
 
-.progress-stats {
+.currency-toggle-widget {
     display: flex;
-    gap: 20px;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg);
+    padding: 6px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.stat-group {
+.currency-toggle-widget:hover {
+    background: white;
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.toggle-code {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-dim);
+    transition: color 0.2s;
+}
+
+.toggle-code.active {
+    color: var(--primary);
+}
+
+.toggle-arrows {
+    color: var(--text-dim);
+    opacity: 0.4;
+    display: flex;
+    align-items: center;
+}
+
+.progress-info-minimal {
+    display: flex;
+    gap: 24px;
+}
+
+.mini-stat-item {
     display: flex;
     flex-direction: column;
 }
 
-.stat-label {
-    font-size: 0.65rem;
+.mini-label {
+    font-size: 0.6rem;
     color: var(--text-dim);
     text-transform: uppercase;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
 }
 
-.stat-group strong {
-    font-size: 1.25rem;
+.mini-stat-item strong {
+    font-size: 1.1rem;
     font-weight: 800;
     color: var(--text);
+}
+
+.align-right {
+    text-align: right;
+    align-items: flex-end;
 }
 
 .progress-interactive-row {
@@ -424,17 +495,80 @@ body {
     letter-spacing: 0.05em;
 }
 
-.date-selector-sleek {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 10px;
+.date-selector-clean {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 10px;
     cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 1.1rem;
+    font-weight: 800;
+    height: 48px;
+    color: var(--text);
+    transition: all 0.2s ease;
+    padding: 0;
+    /* Borderless but structured */
+}
+
+.date-selector-clean:hover {
+    color: var(--primary);
+    transform: translateX(2px);
+}
+
+.date-selector-clean #date-label-text {
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.date-selector-clean:hover #date-label-text {
+    border-bottom-color: var(--primary-dim);
+}
+
+.calendar-icon-green {
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    background: var(--primary-dim);
+    padding: 6px;
+    border-radius: 10px;
+    transition: all 0.2s;
+}
+
+.date-selector-clean:hover .calendar-icon-green {
+    background: var(--primary);
+    color: white;
+}
+
+/* Over Budget Styles */
+.daily-progress-card.over-budget {
+    border-color: var(--danger);
+    background: #fffafa;
+}
+
+.daily-progress-card.over-budget .card-mini-title {
+    color: var(--danger);
+}
+
+.daily-progress-card.over-budget .progress-bar-fill-large {
+    background: var(--danger) !important;
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+.daily-progress-card.over-budget #today-remaining {
+    color: var(--danger);
+    animation: urgentPulse 2s infinite;
+}
+
+@keyframes urgentPulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.daily-progress-card.over-budget #budget-status-label {
+    color: var(--danger);
+    opacity: 1;
+    font-weight: 800;
 }
 
 .settings-card h3 {
@@ -638,15 +772,43 @@ body {
 .save-btn {
     width: 100%;
     background: var(--primary);
-    color: #fff;
+    color: white;
     border: none;
-    padding: 18px;
+    padding: 16px;
     border-radius: 16px;
     font-size: 1.1rem;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s;
-    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.save-btn:active {
+    transform: scale(0.98);
+}
+
+.save-btn.success-mode {
+    background: #059669; /* Darker green */
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+    transform: scale(1.02);
+}
+
+.save-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: 0.5s;
+}
+
+.save-btn.success-mode::after {
+    left: 100%;
+    transition: 0.5s;
 }
 
 /* Calendar */
