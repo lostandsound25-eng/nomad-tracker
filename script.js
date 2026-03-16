@@ -14,10 +14,20 @@ const state = {
     calYear: new Date().getFullYear(),
     isFirstLoad: true,
     user: null,
-    isMultiDay: false,
     rangeStart: null,
     rangeEnd: null,
-    selectedDate: getLocalYYYYMMDD()
+    selectedDate: getLocalYYYYMMDD(),
+    modalCalMonth: new Date().getMonth(),
+    modalCalYear: new Date().getFullYear()
+};
+
+const EXAMPLE_TRIP = {
+    id: 'example-trip-id',
+    name: 'My Adventure (example trip)',
+    daily_budget: 50,
+    home_currency: 'USD',
+    join_code: 'EXAMPLE',
+    is_example: true
 };
 
 // Supabase Configuration
@@ -99,13 +109,15 @@ function init() {
         projMonth: document.getElementById('proj-month'),
         projQuarter: document.getElementById('proj-quarter'),
         notesInput: document.getElementById('expense-note'),
-        
+
         // New elements
         todaySpent: document.getElementById('today-spent'),
+        todayRemaining: document.getElementById('today-remaining'),
         todayProgressFill: document.getElementById('today-progress-fill'),
         budgetInput: document.getElementById('daily-budget-input'),
         budgetLockBtn: document.getElementById('budget-lock-btn'),
-        settingsHomeSymbol: document.getElementById('settings-home-symbol'),
+        miniBudgetSymbol: document.getElementById('budget-symbol-mini'),
+        settingsHomeSymbol: document.getElementById('budget-symbol-mini'), // Redirecting to mini symbol
         progressToggleBtn: document.getElementById('progress-toggle-btn'),
 
         // Auth elements
@@ -119,75 +131,42 @@ function init() {
         activeTripName: document.getElementById('active-trip-name'),
         tripSelector: document.getElementById('trip-selector'),
         joinCodeBadge: document.getElementById('trip-join-code-badge'),
-        copyBtn: document.querySelector('.copy-btn') // for Insights
+        copyBtn: document.querySelector('.copy-btn'),
+        // Trip selector modal
+        tripModal: document.getElementById('trip-modal'),
+        // Date modal elements
+        dateModal: document.getElementById('date-modal'),
+        displayDateText: document.getElementById('display-date-text'),
+        dateLabelText: document.getElementById('date-label-text'),
+        splitIndicator: document.getElementById('split-indicator'),
+        splitText: document.getElementById('split-text')
     };
 
-    const dateModal = document.getElementById('date-modal');
-    const displayDateText = document.getElementById('display-date-text');
-    const dateLabelText = document.getElementById('date-label-text');
-    
-    // Track modal specific calendar state
-    const modalCalState = {
-        month: new Date().getMonth(),
-        year: new Date().getFullYear()
-    };
 
-    const updateDisplayDate = (val) => {
-        const d = new Date(val + 'T00:00:00');
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        displayDateText.innerText = `${months[d.getMonth()]} ${d.getDate()}`;
-        state.selectedDate = val;
-        
-        if (val === getLocalYYYYMMDD()) {
-            dateLabelText.innerText = "Today";
-        } else {
-            dateLabelText.innerText = "Date";
-        }
-        updateDailyProgress();
-        updateSplitIndicator();
-    };
-
-    const updateSplitIndicator = () => {
-        const indicator = document.getElementById('split-indicator');
-        const text = document.getElementById('split-text');
-        const rawVal = els.localInput.value.replace(/,/g, '');
-        const amount = parseFloat(rawVal) || 0;
-
-        if (state.rangeStart && state.rangeEnd && amount > 0) {
-            const start = new Date(state.rangeStart + 'T00:00:00');
-            const end = new Date(state.rangeEnd + 'T00:00:00');
-            const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
-            const perDay = (amount / diffDays).toFixed(2);
-            indicator.classList.remove('hidden');
-            text.innerText = `${CURRENCY_SYMBOLS[state.spendingCurrency] || ''}${amount} will be spread as ${CURRENCY_SYMBOLS[state.spendingCurrency] || ''}${perDay}/day over ${diffDays} days`;
-        } else {
-            indicator.classList.add('hidden');
-        }
-    };
 
     document.getElementById('open-date-modal').addEventListener('click', () => {
-        renderModalCalendar(modalCalState);
-        dateModal.classList.add('active');
+        renderModalCalendar();
+        els.dateModal.classList.add('active');
     });
 
     document.getElementById('close-date-modal').addEventListener('click', () => {
-        dateModal.classList.remove('active');
+        els.dateModal.classList.remove('active');
     });
 
     document.getElementById('confirm-date').addEventListener('click', () => {
         updateDisplayDate(state.selectedDate);
-        dateModal.classList.remove('active');
+        els.dateModal.classList.remove('active');
     });
 
     document.getElementById('modal-prev-month').onclick = () => {
-        modalCalState.month--;
-        if (modalCalState.month < 0) { modalCalState.month = 11; modalCalState.year--; }
-        renderModalCalendar(modalCalState);
+        state.modalCalMonth--;
+        if (state.modalCalMonth < 0) { state.modalCalMonth = 11; state.modalCalYear--; }
+        renderModalCalendar();
     };
     document.getElementById('modal-next-month').onclick = () => {
-        modalCalState.month++;
-        if (modalCalState.month > 11) { modalCalState.month = 0; modalCalState.year++; }
-        renderModalCalendar(modalCalState);
+        state.modalCalMonth++;
+        if (state.modalCalMonth > 11) { state.modalCalMonth = 0; state.modalCalYear++; }
+        renderModalCalendar();
     };
 
     updateDisplayDate(state.selectedDate);
@@ -249,28 +228,27 @@ function init() {
     els.budgetLockBtn.addEventListener('click', () => {
         isBudgetLocked = !isBudgetLocked;
         els.budgetInput.readOnly = isBudgetLocked;
-        
+
         if (isBudgetLocked) {
             els.budgetInput.classList.add('budget-input-locked');
             els.budgetLockBtn.classList.remove('unlocked');
-            els.budgetLockBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${lockPath}</svg>`;
-            
+            els.budgetLockBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${lockPath}</svg>`;
+
             const val = parseFloat(els.budgetInput.value);
             if (!isNaN(val) && val >= 0) {
                 state.dailyBudget = val;
                 localStorage.setItem('nomad_daily_budget', val);
-                // Also update trip budget in Supabase if we have a current trip
-                if (state.currentTrip) {
+                if (state.currentTrip && !state.currentTrip.is_example) {
                     sb.from('trips').update({ daily_budget: val }).eq('id', state.currentTrip.id).then();
                 }
                 updateDailyProgress();
             } else {
-                els.budgetInput.value = state.dailyBudget;
+                els.budgetInput.value = Math.round(state.dailyBudget);
             }
         } else {
             els.budgetInput.classList.remove('budget-input-locked');
             els.budgetLockBtn.classList.add('unlocked');
-            els.budgetLockBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${unlockPath}</svg>`;
+            els.budgetLockBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${unlockPath}</svg>`;
             els.budgetInput.focus();
         }
     });
@@ -319,7 +297,6 @@ function init() {
     document.getElementById('btn-login').addEventListener('click', handleLogin);
     document.getElementById('btn-signup').addEventListener('click', handleSignup);
     document.getElementById('btn-logout').addEventListener('click', handleLogout);
-    document.getElementById('btn-seed-data').addEventListener('click', seedDemoData);
 
     const handleGoogle = () => alert("Google Sign-In requires a Client ID. Please set this up in your Supabase Dashboard under Authentication -> Providers -> Google.");
     document.getElementById('btn-google').addEventListener('click', handleGoogle);
@@ -361,10 +338,6 @@ function init() {
         newTripModal.classList.add('active');
     });
 
-    document.getElementById('close-new-new-trip-modal')?.addEventListener('click', () => {
-        newTripModal.classList.remove('active');
-    });
-    // The close button ID was close-new-trip-modal in HTML
     document.getElementById('close-new-trip-modal').addEventListener('click', () => {
         newTripModal.classList.remove('active');
     });
@@ -384,11 +357,11 @@ function init() {
         btn.innerText = "Creating...";
 
         const { data, error } = await sb.from('trips').insert([
-            { 
-                name, 
-                daily_budget: dailyBudget, 
-                home_currency: homeCurrency, 
-                created_by: state.user.id 
+            {
+                name,
+                daily_budget: dailyBudget,
+                home_currency: homeCurrency,
+                created_by: state.user.id
             }
         ]).select();
 
@@ -404,18 +377,19 @@ function init() {
             await fetchUserTrips();
             const newTrip = state.trips.find(t => t.id === data[0].id);
             if (newTrip) setActiveTrip(newTrip);
-            
+
             newTripModal.classList.remove('active');
             document.getElementById('new-trip-name').value = '';
         }
-        
+
         btn.disabled = false;
         btn.innerText = "Initialize Trip";
     });
 
-    // Join Trip Logic
+    // --- Join Trip Logic (Secure Account-based) ---
     document.getElementById('btn-join-trip').addEventListener('click', async () => {
-        const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+        const joinInput = document.getElementById('join-code-input');
+        const code = joinInput.value.trim().toUpperCase();
         const btn = document.getElementById('btn-join-trip');
         
         if (!code) {
@@ -424,57 +398,74 @@ function init() {
         }
 
         btn.disabled = true;
-        btn.innerText = "Joining...";
+        btn.innerText = "Searching...";
 
-        // 1. Find the trip with this code
-        const { data: tripData, error: tripLookupError } = await sb
-            .from('trips')
-            .select('*')
-            .eq('join_code', code)
-            .single();
+        // Use the new RPC function we just added in SQL for privacy
+        const { data: tripData, error: rpcError } = await sb.rpc('get_trip_by_code', { t_code: code });
 
-        if (tripLookupError || !tripData) {
+        if (rpcError || !tripData || tripData.length === 0) {
             alert("Invalid join code. Please check with the trip owner.");
             btn.disabled = false;
             btn.innerText = "Join Trip";
             return;
         }
 
+        const foundTrip = tripData[0];
+
         // 2. Add user to trip_members
         const { error: joinError } = await sb.from('trip_members').insert([
-            { trip_id: tripData.id, user_id: state.user.id, role: 'member' }
+            { trip_id: foundTrip.id, user_id: state.user.id, role: 'member' }
         ]);
 
-        if (joinError && joinError.code !== '23505') { // 23505 is "already a member"
+        if (joinError && joinError.code !== '23505') {
             alert("Failed to join trip: " + joinError.message);
         } else {
-            alert("Successfully joined " + tripData.name + "!");
+            alert("Successfully joined " + foundTrip.name + "!");
             document.getElementById('join-code-input').value = '';
             document.getElementById('trip-modal').classList.remove('active');
-            await fetchUserTrips();
-            setActiveTrip(tripData);
+            await fetchUserTrips(); // Refresh list to see the new trip
+            
+            // Set it active manually after refresh
+            const tripObj = state.trips.find(t => t.id === foundTrip.id);
+            if (tripObj) setActiveTrip(tripObj);
         }
 
         btn.disabled = false;
         btn.innerText = "Join Trip";
     });
 
-    // Copy Join Code to Clipboard
-    els.joinCodeBadge.addEventListener('click', () => {
-        const codeText = els.joinCodeBadge.innerText.trim();
-        if (codeText === '---' || codeText === 'Copied!') return;
-        
-        navigator.clipboard.writeText(codeText).then(() => {
-            const original = els.joinCodeBadge.innerText;
-            els.joinCodeBadge.innerText = "COPIED!";
-            setTimeout(() => els.joinCodeBadge.innerText = original, 1500);
-        });
+    // Native Share / Invite
+    els.joinCodeBadge.addEventListener('click', async () => {
+        const code = els.joinCodeBadge.innerText.trim();
+        if (code === '---' || code === 'COPIED!') return;
+
+        const shareData = {
+            title: `Join my trip: ${state.currentTrip.name}`,
+            text: `Hey! Track expenses with me on our trip "${state.currentTrip.name}". Use my join code: ${code}`,
+            url: window.location.href // This will eventually be a deep link
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                // Fallback to clipboard if share sheet is closed or fails
+                copyToClipboard(code);
+            }
+        } else {
+            copyToClipboard(code);
+        }
     });
+
 
     const viewRawBtn = document.getElementById('view-raw');
     if (viewRawBtn) viewRawBtn.onclick = openAuditModal;
 
     if (els.copyBtn) els.copyBtn.addEventListener('click', copyToSheets);
+
+    // Invite Handlers
+    document.getElementById('btn-invite-share')?.addEventListener('click', handleInviteShare);
+    document.getElementById('btn-invite-email')?.addEventListener('click', handleInviteEmail);
 
     // Initial Auth Check & Persistence
     // onAuthStateChange handles the initial session check automatically
@@ -491,7 +482,7 @@ function init() {
 function renderTripMenu() {
     const list = document.getElementById('trip-list-menu');
     if (!list) return;
-    
+
     // Use a Set to ensure unique IDs if data somehow has duplicates
     const uniqueTrips = [];
     const seen = new Set();
@@ -524,17 +515,29 @@ function updateSplitLabel() {
 }
 
 async function setActiveTrip(trip) {
+    if (!trip) {
+        state.currentTrip = null;
+        els.activeTripName.innerText = "Create a Trip";
+        if (els.joinCodeBadge) els.joinCodeBadge.innerText = '---';
+        if (els.tripSelector) els.tripSelector.value = '';
+        state.history = [];
+        renderHistory();
+        updateDashboard();
+        updateDailyProgress();
+        return;
+    }
+
     state.currentTrip = trip;
     state.dailyBudget = trip.daily_budget;
     state.homeCurrency = trip.home_currency;
-    
+
     // Update UI
     els.activeTripName.innerText = trip.name;
-    els.budgetInput.value = trip.daily_budget;
+    els.budgetInput.value = Math.round(trip.daily_budget);
     els.homeSelect.value = trip.home_currency;
     els.homeLabel.innerText = trip.home_currency;
-    els.settingsHomeSymbol.innerText = CURRENCY_SYMBOLS[trip.home_currency] || trip.home_currency;
-    
+    if (els.settingsHomeSymbol) els.settingsHomeSymbol.innerText = CURRENCY_SYMBOLS[trip.home_currency] || trip.home_currency;
+
     // Display Join Code
     if (els.joinCodeBadge) {
         els.joinCodeBadge.innerText = trip.join_code || '---';
@@ -544,7 +547,7 @@ async function setActiveTrip(trip) {
     if (els.tripSelector) {
         els.tripSelector.value = trip.id;
     }
-    
+
     localStorage.setItem('nomad_home_currency', state.homeCurrency);
     localStorage.setItem('nomad_daily_budget', state.dailyBudget);
 
@@ -555,67 +558,111 @@ async function setActiveTrip(trip) {
     fetchTripExpenses();
 }
 
-async function fetchUserTrips() {
-    if (!state.user) return;
-    const { data, error } = await sb.from('trips').select('*').order('created_at', { ascending: false });
-    if (error) { console.error("Error fetching trips:", error); return; }
+async function handleInviteShare() {
+    const code = state.currentTrip?.join_code;
+    if (!code) return;
+
+    const shareText = `Join my trip "${state.currentTrip.name}" on Nomad Tracker! Use code: ${code}`;
     
-    // Filter duplicates just in case
-    const uniqueData = [];
-    const seen = new Set();
-    data.forEach(t => {
-        if (!seen.has(t.id)) {
-            seen.add(t.id);
-            uniqueData.push(t);
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'Join Nomad Trip',
+                text: shareText,
+                url: window.location.href
+            });
+        } catch (err) {
+            console.log("Share failed or cancelled", err);
+        }
+    } else {
+        copyToClipboard(code);
+        alert("Invite code copied to clipboard!");
+    }
+}
+
+function handleInviteEmail() {
+    const code = state.currentTrip?.join_code;
+    if (!code) return;
+
+    const subject = encodeURIComponent(`Join my trip: ${state.currentTrip.name}`);
+    const body = encodeURIComponent(`Hey! Join my trip on Nomad Tracker so we can track expenses together.\n\nTrip Name: ${state.currentTrip.name}\nInvite Code: ${code}\n\nTrack here: ${window.location.href}`);
+    
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        const badge = document.getElementById('trip-join-code-badge');
+        if (badge) {
+            const original = badge.innerText;
+            badge.innerText = "COPIED!";
+            setTimeout(() => badge.innerText = original, 1500);
         }
     });
+}
 
-    state.trips = uniqueData;
-    if (uniqueData.length > 0) {
-        els.tripSelector.innerHTML = uniqueData.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-        renderTripMenu(); // Update the modal list too
-        // If we don't have a current trip yet, or if the current trip isn't in the new list, set active to the first one
-        if (!state.currentTrip || !data.find(t => t.id === state.currentTrip.id)) {
-            setActiveTrip(data[0]);
+async function fetchUserTrips() {
+    if (!state.user) return;
+    
+    // 1. Fetch real trips from DB
+    const { data: memberData, error } = await sb.from('trip_members')
+        .select('trips(*)')
+        .eq('user_id', state.user.id);
+
+    if (error) { 
+        console.error("Error fetching trips:", error); 
+    }
+
+    let realTrips = memberData ? memberData.map(m => m.trips).filter(Boolean) : [];
+    realTrips.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    // 2. Always include the Example Trip
+    const allTrips = [EXAMPLE_TRIP, ...realTrips];
+    state.trips = allTrips;
+
+    // 3. Update Selector UI
+    if (els.tripSelector) {
+        els.tripSelector.innerHTML = allTrips.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
+    
+    renderTripMenu(); 
+
+    // 4. Handle initial selection
+    if (realTrips.length > 0) {
+        // If we have real trips, select the first real one
+        if (!state.currentTrip || !allTrips.find(t => t.id === state.currentTrip.id)) {
+            setActiveTrip(realTrips[0]);
         } else {
-            // Keep current trip but sync dropdown
             els.tripSelector.value = state.currentTrip.id;
         }
     } else {
-        createDemoTrip();
+        // New user or no real trips - don't auto-select example, just show prompt
+        setActiveTrip(null);
     }
 }
 
-async function createDemoTrip() {
-    // Check if any trip already exists to prevent double auto-creation
-    const { count } = await sb.from('trips').select('*', { count: 'exact', head: true });
-    if (count > 0) { 
-        fetchUserTrips();
-        return; 
-    }
-
-    const { data: tripData, error: tripError } = await sb.from('trips').insert([
-        { name: 'My Adventure', daily_budget: 50, home_currency: 'USD', created_by: state.user.id }
-    ]).select();
-
-    if (tripError) { console.error("Failed to create demo trip", tripError); return; }
-    
-    await sb.from('trip_members').insert([
-        { trip_id: tripData[0].id, user_id: state.user.id, role: 'owner' }
-    ]);
-
-    fetchUserTrips();
-}
 
 async function fetchTripExpenses() {
-    if (!state.currentTrip) return;
+    if (!state.currentTrip) {
+        state.history = [];
+        renderHistory();
+        updateDashboard();
+        updateDailyProgress();
+        return;
+    }
+
+    if (state.currentTrip.is_example) {
+        generateExampleHistory();
+        return;
+    }
+
     const { data, error } = await sb.from('expenses')
         .select('*')
         .eq('trip_id', state.currentTrip.id)
         .order('spent_at', { ascending: false });
-        
+
     if (error) { console.error("Failed to fetch expenses", error); return; }
-    
+
     state.history = data.map(e => ({
         id: e.id,
         date: e.spent_at,
@@ -626,7 +673,7 @@ async function fetchTripExpenses() {
         symbol: CURRENCY_SYMBOLS[e.local_currency] || e.local_currency,
         note: e.note
     }));
-    
+
     renderHistory();
     updateDashboard();
     updateDailyProgress();
@@ -952,7 +999,7 @@ async function updateFxRate() {
         } else {
             els.rateBanner.innerText = `1 ${state.spendingCurrency} ≈ ${rateToHome.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${state.homeCurrency}`;
         }
-        
+
         calculateHomeValue();
         updateDailyProgress();
     } catch (err) {
@@ -961,6 +1008,38 @@ async function updateFxRate() {
         els.rateBanner.innerText = `Rates unavailable (Offline)`;
         calculateHomeValue();
         updateDailyProgress();
+    }
+}
+
+function updateDisplayDate(val) {
+    const d = new Date(val + 'T00:00:00');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (els.displayDateText) els.displayDateText.innerText = `${months[d.getMonth()]} ${d.getDate()}`;
+    state.selectedDate = val;
+
+    if (val === getLocalYYYYMMDD()) {
+        if (els.dateLabelText) els.dateLabelText.innerText = "Today";
+    } else {
+        if (els.dateLabelText) els.dateLabelText.innerText = "Date";
+    }
+    updateDailyProgress();
+    updateSplitIndicator();
+}
+
+function updateSplitIndicator() {
+    if (!els.splitIndicator || !els.splitText || !els.localInput) return;
+    const rawVal = els.localInput.value.replace(/,/g, '');
+    const amount = parseFloat(rawVal) || 0;
+
+    if (state.rangeStart && state.rangeEnd && amount > 0) {
+        const start = new Date(state.rangeStart + 'T00:00:00');
+        const end = new Date(state.rangeEnd + 'T00:00:00');
+        const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        const perDay = (amount / diffDays).toFixed(2);
+        els.splitIndicator.classList.remove('hidden');
+        els.splitText.innerText = `${CURRENCY_SYMBOLS[state.spendingCurrency] || ''}${amount} will be spread as ${CURRENCY_SYMBOLS[state.spendingCurrency] || ''}${perDay}/day over ${diffDays} days`;
+    } else {
+        els.splitIndicator.classList.add('hidden');
     }
 }
 
@@ -981,7 +1060,7 @@ async function saveExpense() {
 
     const rawVal = els.localInput.value.replace(/,/g, '');
     const totalAmount = parseFloat(rawVal);
-    
+
     if (isNaN(totalAmount) || totalAmount <= 0) {
         alert("Please enter a valid amount!");
         return;
@@ -996,13 +1075,13 @@ async function saveExpense() {
     }
 
     const newExpenses = [];
-    
+
     try {
         if (state.rangeStart && state.rangeEnd) {
             const start = new Date(state.rangeStart + 'T00:00:00');
             const end = new Date(state.rangeEnd + 'T00:00:00');
             const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
-            
+
             const amountPerDay = totalAmount / diffDays;
             const homeAmountPerDay = (totalAmount * state.fxRateToHome) / diffDays;
 
@@ -1017,8 +1096,9 @@ async function saveExpense() {
                     home_amount: homeAmountPerDay,
                     fx_rate: state.fxRateToHome,
                     category: state.selectedCategory,
-                    note: els.notesInput.value.trim() + ` (Split ${i+1}/${diffDays})`,
-                    spent_at: d.toISOString()
+                    note: els.notesInput.value.trim() + ` (Split ${i + 1}/${diffDays})`,
+                    spent_at: d.toISOString(),
+                    paid_by: state.user.id
                 });
             }
         } else {
@@ -1032,7 +1112,8 @@ async function saveExpense() {
                 fx_rate: state.fxRateToHome,
                 category: state.selectedCategory,
                 note: els.notesInput.value.trim(),
-                spent_at: d.toISOString()
+                spent_at: d.toISOString(),
+                paid_by: state.user.id
             });
         }
 
@@ -1055,10 +1136,10 @@ async function saveExpense() {
         state.selectedCategory = null;
         state.rangeStart = null;
         state.rangeEnd = null;
-        
+
         updateDailyProgress();
         updateSplitIndicator();
-        
+
         const hint = document.getElementById('range-selection-hint');
         if (hint) hint.innerText = "Tap dates to select range";
 
@@ -1097,7 +1178,7 @@ function openAuditModal() {
     let html = `<thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Note</th></tr></thead><tbody>`;
 
     // Sort history by date for export
-    const sorted = [...state.history].sort((a,b) => new Date(a.date) - new Date(b.date));
+    const sorted = [...state.history].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     sorted.forEach(h => {
         const localDate = new Date(h.date).toLocaleDateString();
@@ -1110,6 +1191,7 @@ function openAuditModal() {
     html += '</tbody>';
     content.innerHTML = html;
 }
+
 
 function renderHistory() {
     renderCalendar();
@@ -1267,6 +1349,8 @@ function showDayDetail(dateKey, dateObj, dayData, clickedDiv) {
     });
 }
 
+
+
 async function syncToSheets(expense) {
     const url = localStorage.getItem('nomad_sheets_url');
     const statusEl = document.getElementById('sync-status');
@@ -1340,9 +1424,9 @@ function updateDashboard() {
 }
 
 function updateDailyProgress() {
-    // We now use state.selectedDate instead of reading from a (now removed) input field
-    const targetDateStr = state.selectedDate; 
-    
+    // Progress bar now ALWAYS shows actual today's spending
+    const targetDateStr = getLocalYYYYMMDD(); 
+
     let spentTodayHome = 0;
     state.history.forEach(item => {
         const itemDate = getLocalYYYYMMDD(new Date(item.date));
@@ -1352,7 +1436,7 @@ function updateDailyProgress() {
     });
 
     const budgetHome = state.dailyBudget;
-    
+
     let spentToday = spentTodayHome;
     let budget = budgetHome;
     let sym = CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency;
@@ -1367,21 +1451,22 @@ function updateDailyProgress() {
     const remaining = Math.max(0, budget - spentToday);
 
     const formatAmt = (amt) => {
-        // If it's a very large number (like IDR over 1,000,000), skip decimals to save space
         if (amt >= 1000) {
-            return amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+            return amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
         }
-        return amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        return amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
-    els.todaySpent.innerText = `${sym}${formatAmt(spentToday)}`;
-    // els.todayRemaining.innerText removed as it's no longer in UI
+    if (els.todaySpent) els.todaySpent.innerText = `${sym}${formatAmt(spentToday)}`;
+    if (els.todayRemaining) els.todayRemaining.innerText = `${sym}${formatAmt(remaining)}`;
+    if (els.miniBudgetSymbol) els.miniBudgetSymbol.innerText = sym;
+    if (els.budgetInput) els.budgetInput.value = Math.round(budget);
 
     let percent = budget > 0 ? (spentToday / budget) * 100 : 0;
     if (percent > 100) percent = 100;
-    
+
     els.todayProgressFill.style.width = `${percent}%`;
-    
+
     if (percent >= 100) {
         els.todayProgressFill.style.backgroundColor = 'var(--danger)';
     } else if (percent > 75) {
@@ -1486,8 +1571,8 @@ function copyToSheets() {
     // TSV Export: Date, Category, Amount (Home), Note
     let content = `Trip: ${state.currentTrip ? state.currentTrip.name : 'Unknown'}\n`;
     content += "Date\tCategory\tAmount (${state.homeCurrency})\tNote\n";
-    
-    const sorted = [...state.history].sort((a,b) => new Date(a.date) - new Date(b.date));
+
+    const sorted = [...state.history].sort((a, b) => new Date(a.date) - new Date(b.date));
     content += sorted.map(h => {
         const d = new Date(h.date).toLocaleDateString();
         return `${d}\t${h.category}\t${h.usdAmount.toFixed(2)}\t${h.note || ''}`;
@@ -1517,15 +1602,16 @@ window.switchTab = function (tabId) {
 };
 
 /** MODAL CALENDAR **/
-function renderModalCalendar(calState) {
+function renderModalCalendar() {
     const body = document.getElementById('modal-calendar-body');
     const label = document.getElementById('modal-calendar-month-year');
+    if (!body || !label) return;
     body.innerHTML = '';
 
-    const firstDay = new Date(calState.year, calState.month, 1).getDay();
-    const daysInMonth = new Date(calState.year, calState.month + 1, 0).getDate();
-    const monthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date(calState.year, calState.month));
-    label.innerText = `${monthName} ${calState.year}`;
+    const firstDay = new Date(state.modalCalYear, state.modalCalMonth, 1).getDay();
+    const daysInMonth = new Date(state.modalCalYear, state.modalCalMonth + 1, 0).getDate();
+    const monthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date(state.modalCalYear, state.modalCalMonth));
+    label.innerText = `${monthName} ${state.modalCalYear}`;
 
     for (let i = 0; i < firstDay; i++) {
         const div = document.createElement('div');
@@ -1536,7 +1622,7 @@ function renderModalCalendar(calState) {
     const todayLocal = getLocalYYYYMMDD();
 
     for (let day = 1; day <= daysInMonth; day++) {
-        const dateObj = new Date(calState.year, calState.month, day);
+        const dateObj = new Date(state.modalCalYear, state.modalCalMonth, day);
         const key = getLocalYYYYMMDD(dateObj);
 
         const div = document.createElement('div');
@@ -1555,7 +1641,7 @@ function renderModalCalendar(calState) {
         div.innerHTML = `<span class="day-num">${day}</span>`;
         div.onclick = () => {
             handleCalendarDayClick(key, dateObj, null);
-            renderModalCalendar(calState);
+            renderModalCalendar();
             const hint = document.getElementById('modal-range-hint');
             if (state.rangeStart && state.rangeEnd) {
                 const diff = Math.round((new Date(state.rangeEnd) - new Date(state.rangeStart)) / (1000 * 60 * 60 * 24)) + 1;
@@ -1570,34 +1656,22 @@ function renderModalCalendar(calState) {
     }
 }
 
-async function seedDemoData() {
-    if (!state.user || !state.currentTrip) {
-        alert("Please log in and select a trip first.");
-        return;
-    }
-
-    if (!confirm("This will add about 60 sample expenses to your current trip. Continue?")) return;
-
-    const btn = document.getElementById('btn-seed-data');
-    const originalText = btn.innerText;
-    btn.innerText = "Seeding... (Wait 5s)";
-    btn.disabled = true;
-
+function generateExampleHistory() {
     const expenses = [];
     const notes = [
-        "Local market lunch", "Grab to the station", "Morning coffee", 
+        "Local market lunch", "Grab to the station", "Morning coffee",
         "Dinner with locals", "Supermarket bulk buy", "Airbnb cleaning fee",
         "Weekend moped rental", "Ferry ticket to island", "Beach club cocktails",
         "SIM card topup", "Laundry service", "Temple entry fee"
     ];
 
     const categories = ['accommodation', 'breakfast', 'lunch', 'dinner', 'transportation', 'miscellaneous'];
-    
+
     // Seed for last 60 days
     for (let i = 0; i < 60; i++) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        
+
         // Randomly skip some days to look natural
         if (Math.random() > 0.8) continue;
 
@@ -1607,33 +1681,24 @@ async function seedDemoData() {
             const cat = categories[Math.floor(Math.random() * categories.length)];
             const localAmt = Math.floor(Math.random() * 50) + 5;
             const note = Math.random() > 0.5 ? notes[Math.floor(Math.random() * notes.length)] : "";
-            
+
             expenses.push({
-                trip_id: state.currentTrip.id,
-                user_id: state.user.id,
-                local_amount: localAmt,
-                local_currency: state.homeCurrency,
-                home_amount: localAmt,
-                fx_rate: 1,
+                id: 'ex-' + i + '-' + j,
+                date: d.toISOString(),
                 category: cat,
-                note: note,
-                spent_at: d.toISOString()
+                localAmount: localAmt,
+                currency: 'USD',
+                usdAmount: localAmt,
+                symbol: '$',
+                note: note
             });
         }
     }
 
-    const { error } = await sb.from('expenses').insert(expenses);
-    if (error) {
-        alert("Seed failed: " + error.message);
-    } else {
-        btn.innerText = "Done! ✨";
-        fetchTripExpenses();
-    }
-
-    setTimeout(() => {
-        btn.innerText = originalText;
-        btn.disabled = false;
-    }, 4000);
+    state.history = expenses;
+    renderHistory();
+    updateDashboard();
+    updateDailyProgress();
 }
 
 document.addEventListener('DOMContentLoaded', init);

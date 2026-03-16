@@ -26,7 +26,7 @@
                 <h1>Nomad Tracker</h1>
                 <p id="auth-subtitle">Sign in to track your adventures</p>
             </div>
-            
+
             <div class="auth-form" id="login-form">
                 <div class="input-group">
                     <label>Email</label>
@@ -39,7 +39,8 @@
                 <button id="btn-login" class="save-btn">Login</button>
                 <div class="auth-divider"><span>OR</span></div>
                 <button id="btn-google" class="google-btn">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="18">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"
+                        width="18">
                     Sign in with Google
                 </button>
                 <p class="auth-switch">Don't have an account? <a href="#" id="switch-to-signup">Sign Up</a></p>
@@ -57,12 +58,13 @@
                 <button id="btn-signup" class="save-btn">Create Account</button>
                 <div class="auth-divider"><span>OR</span></div>
                 <button id="btn-google-signup" class="google-btn">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="18">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"
+                        width="18">
                     Sign up with Google
                 </button>
                 <p class="auth-switch">Already have an account? <a href="#" id="switch-to-login">Login</a></p>
             </div>
-            
+
             <div id="auth-error" class="auth-error-msg hidden"></div>
         </div>
     </div>
@@ -101,38 +103,78 @@
                 <header class="section-header tracker-header">
                     <div class="trip-info-pill" id="open-trip-selector">
                         <span id="active-trip-name">Select Trip</span>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
                     </div>
                 </header>
 
                 <div class="daily-progress-card">
-                    <div class="progress-labels">
-                        <div class="date-selector-sleek" id="open-date-modal">
-                            <span class="active-date-label" id="date-label-text">Today</span>
-                            <div class="date-input-trigger">
-                                <span id="display-date-text">March 14</span>
+                    <h3 class="card-mini-title">Today's Progress</h3>
+                    <div class="progress-labels-new">
+                        <div class="progress-stats">
+                            <div class="stat-group">
+                                <span class="stat-label">Spent</span>
+                                <strong id="today-spent">$0.00</strong>
+                            </div>
+                            <div class="stat-group">
+                                <span class="stat-label">Remaining</span>
+                                <strong id="today-remaining">$50.00</strong>
                             </div>
                         </div>
-                        <div class="progress-toggle-wrap" id="progress-toggle-btn" title="Toggle Currency">
-                            <span class="spent-label">Spent: <strong id="today-spent">$0.00</strong></span>
+                        <div class="progress-toggle-btn-small" id="progress-toggle-btn" title="Toggle Currency">
                             <div class="glass-icon-btn">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M17 2.1l4 4-4 4"/>
-                                    <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4"/>
-                                    <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2"/>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17 2.1l4 4-4 4" />
+                                    <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4" />
+                                    <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2" />
                                 </svg>
                             </div>
                         </div>
                     </div>
-                    <div class="progress-bar-bg-large">
-                        <div id="today-progress-fill" class="progress-bar-fill-large"></div>
+                    <div class="progress-interactive-row">
+                        <div class="progress-bar-bg-large">
+                            <div id="today-progress-fill" class="progress-bar-fill-large"></div>
+                        </div>
+                        <div class="budget-goal-widget">
+                            <span class="tiny-label">Daily Goal</span>
+                            <div class="budget-input-group-mini">
+                                <span id="budget-symbol-mini" class="mini-sym">$</span>
+                                <input type="number" id="daily-budget-input" class="subtle-input budget-input-locked"
+                                    placeholder="50" readonly>
+                                <button id="budget-lock-btn" class="budget-lock-btn-mini" title="Edit Budget">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="entry-card">
-                    <div class="currency-settings">
-                        <div class="currency-col">
-                            <label>Spending Currency</label>
+                    <h3 class="entry-card-title">New Expense</h3>
+                    <div class="entry-meta-top">
+                        <div class="meta-col">
+                            <label>Date</label>
+                            <div class="date-selector-sleek" id="open-date-modal">
+                                <div class="date-input-trigger">
+                                    <span id="date-label-text">Today</span>, <span id="display-date-text">March
+                                        16</span>
+                                </div>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                                    style="margin-left: 4px; opacity: 0.5;">
+                                    <path d="m6 9 6 6 6-6" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="meta-col">
+                            <label>Currency</label>
                             <select id="local-currency" class="currency-select">
                                 <option value="USD">USD ($)</option>
                                 <option value="EUR">EUR (€)</option>
@@ -161,7 +203,8 @@
 
                     <div class="usd-preview">
                         ≈ <span id="usd-amount">0.00</span> <span id="home-symbol-label">USD</span>
-                        <div class="fx-rate-subtext" id="fx-rate" style="font-size: 0.75rem; color: var(--text-dim); margin-top: 6px;">1 spent ≈ 1 home</div>
+                        <div class="fx-rate-subtext" id="fx-rate"
+                            style="font-size: 0.75rem; color: var(--text-dim); margin-top: 6px;">1 spent ≈ 1 home</div>
                     </div>
 
                     <div id="split-indicator" class="split-indicator hidden">
@@ -239,7 +282,9 @@
                 <div class="sync-audit-card">
                     <div class="sync-header">
                         <h3>Trip Management</h3>
-                        <p id="range-selection-hint" style="font-size: 0.75rem; color: var(--primary); font-weight: 600;">Tap dates to select range</p>
+                        <p id="range-selection-hint"
+                            style="font-size: 0.75rem; color: var(--primary); font-weight: 600;">Tap dates to select
+                            range</p>
                     </div>
                     <div class="audit-actions">
                         <button id="view-raw" class="audit-btn main-action">
@@ -275,13 +320,23 @@
                 </header>
 
                 <div class="settings-card">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
                         <div>
                             <h3 style="margin: 0; font-size: 1rem;">Active Trip</h3>
-                            <p style="font-size: 0.65rem; color: var(--text-dim); margin-top: 2px;">Invite a partner to track together</p>
+                            <p style="font-size: 0.65rem; color: var(--text-dim); margin-top: 2px;">Invite a partner to
+                                track together</p>
                         </div>
-                        <div style="text-align: right;">
+                        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                             <span id="trip-join-code-badge" class="join-code-pill">---</span>
+                            <div class="invite-actions">
+                                <button class="mini-icon-btn" id="btn-invite-share" title="Share Code">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                                </button>
+                                <button class="mini-icon-btn" id="btn-invite-email" title="Invite via Email">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="trip-selector-row">
@@ -294,7 +349,7 @@
                 <div class="settings-card">
                     <h3>App Settings</h3>
                     <div class="settings-row">
-                        <div class="currency-col">
+                        <div class="currency-col" style="flex: 1;">
                             <label>Home Currency</label>
                             <select id="home-currency" class="currency-select">
                                 <option value="USD">USD ($)</option>
@@ -305,26 +360,12 @@
                                 <option value="OTHER_HOME">🔍 Other...</option>
                             </select>
                         </div>
-                        <div class="currency-col">
-                            <label>Daily Budget (<span id="settings-home-symbol">$</span>)</label>
-                            <div class="budget-input-group">
-                                <input type="number" id="daily-budget-input" class="subtle-input budget-input-locked" placeholder="e.g. 50" readonly>
-                                <button id="budget-lock-btn" class="budget-lock-btn" title="Unlock to edit">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                <div class="settings-card">
-                    <h3>Developer Tools</h3>
-                    <p style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 1rem;">Populate your account with sample expenses to see the dashboard in action.</p>
-                    <button id="btn-seed-data" class="save-btn secondary">Populate Demo Data (2 Months)</button>
-                    
-                    <button id="btn-logout" class="danger-btn" style="width: 100%; margin-top: 1rem;">Log Out</button>
-                    <p id="user-email-display" style="font-size: 0.7rem; text-align: center; margin-top: 8px; color: var(--text-dim);"></p>
-                </div>
+                <button id="btn-logout" class="danger-btn" style="width: 100%; margin-top: 1rem;">Log Out</button>
+                <p id="user-email-display"
+                    style="font-size: 0.7rem; text-align: center; margin-top: 8px; color: var(--text-dim);"></p>
 
                 <div class="analytics-grid">
                     <div class="analytics-card main">
@@ -378,7 +419,7 @@
                 <h3>Select Date or Range</h3>
                 <button id="close-date-modal" class="close-btn">&times;</button>
             </header>
-            
+
             <div class="calendar-container modal-calendar">
                 <div class="calendar-header">
                     <button id="modal-prev-month" class="cal-nav">&lt;</button>
@@ -396,7 +437,7 @@
             <div class="range-status-pill">
                 <span id="modal-range-hint">Tap a date to start</span>
             </div>
-            
+
             <button id="confirm-date" class="save-btn">Confirm Selection</button>
         </div>
     </div>
@@ -408,13 +449,13 @@
                 <h3>Plan New Trip</h3>
                 <button id="close-new-trip-modal" class="close-btn">&times;</button>
             </header>
-            
+
             <div class="new-trip-form">
                 <div class="input-group">
                     <label>Trip Name</label>
                     <input type="text" id="new-trip-name" placeholder="e.g., Southeast Asia 2026">
                 </div>
-                
+
                 <div class="settings-row" style="margin-top: 1rem;">
                     <div class="currency-col">
                         <label>Home Currency</label>
@@ -428,11 +469,13 @@
                     </div>
                     <div class="currency-col">
                         <label>Daily Budget</label>
-                        <input type="number" id="new-trip-budget" class="subtle-input" style="background: var(--bg); border: 1px solid var(--border);" placeholder="50">
+                        <input type="number" id="new-trip-budget" class="subtle-input"
+                            style="background: var(--bg); border: 1px solid var(--border);" placeholder="50">
                     </div>
                 </div>
 
-                <button id="btn-create-trip-confirm" class="save-btn" style="margin-top: 1.5rem;">Initialize Trip</button>
+                <button id="btn-create-trip-confirm" class="save-btn" style="margin-top: 1.5rem;">Initialize
+                    Trip</button>
             </div>
         </div>
     </div>
@@ -447,9 +490,10 @@
             <div id="trip-list-menu" class="trip-menu-list">
                 <!-- Populated via JS -->
             </div>
-            
+
             <div class="join-trip-section">
-                <input type="text" id="join-code-input" placeholder="Enter Join Code (e.g. A1B2C3)" class="subtle-input">
+                <input type="text" id="join-code-input" placeholder="Enter Join Code (e.g. A1B2C3)"
+                    class="subtle-input">
                 <button id="btn-join-trip" class="save-btn secondary">Join Trip</button>
             </div>
 
