@@ -1286,84 +1286,35 @@ async function saveExpense() {
         if (hint) hint.innerText = "Tap dates to select range";
         fetchTripExpenses();
 
-        // ── SATISFYING FOLD-AND-FLY ANIMATION (Log -> Calendar) ──────────────────────────────
-        const entryCard = document.querySelector('.entry-card');
-        const calTabBtn = document.querySelector('.tab-btn[onclick*="history"]');
+        // ── SIMPLE SAVE FEEDBACK ──────────────────────────────
 
-        if (entryCard && calTabBtn) {
-            const cardRect = entryCard.getBoundingClientRect();
-            const tabRect = calTabBtn.getBoundingClientRect();
+        btn.innerText = '✓  Saved';
+        btn.classList.add('success-mode');
 
-            // Calculate center of tab icon (the target)
-            const targetX = tabRect.left + tabRect.width / 2;
-            const targetY = tabRect.top + tabRect.height / 2;
-
-            // Calculate center of current card (starting point)
-            const srcX = cardRect.left + cardRect.width / 2;
-            const srcY = cardRect.top + cardRect.height / 2;
-
-            // Delta for the fly animation
-            const flyX = targetX - srcX;
-            const flyY = targetY - srcY;
-
-            // 1. Create Ghost Clone for flying
-            const ghost = entryCard.cloneNode(true);
-            ghost.className = 'entry-card card-fly-ghost';
-            ghost.style.left = cardRect.left + 'px';
-            ghost.style.top = cardRect.top + 'px';
-            ghost.style.width = cardRect.width + 'px';
-            ghost.style.height = cardRect.height + 'px';
-            ghost.style.margin = '0';
-            ghost.style.setProperty('--fly-x', flyX + 'px');
-            ghost.style.setProperty('--fly-y', flyY + 'px');
-            
-            // 2. Clear inputs immediately for "fresh" look on arrival
-            document.body.appendChild(ghost);
-            entryCard.classList.add('card-fold-exit');
-
-            // 3. Pulse the Calendar tab when ghost "hits" it (~750ms into 850ms fly)
-            setTimeout(() => {
-                calTabBtn.classList.add('tab-pulse-arrive');
-                if (window.navigator && window.navigator.vibrate) {
-                    window.navigator.vibrate([10, 30, 10]); // Premium triple pulse
-                }
-                setTimeout(() => calTabBtn.classList.remove('tab-pulse-arrive'), 600);
-            }, 700);
-
-            // 4. Cleanup and Reset logic
-            setTimeout(() => {
-                ghost.remove();
-                
-                // Form Reset
-                els.localInput.value = '';
-                autoScaleInput();
-                els.usdOutput.innerText = '0.00';
-                els.notesInput.value = '';
-                els.catBtns.forEach(b => b.classList.remove('selected'));
-                state.selectedCategory = null;
-                state.rangeStart = null;
-                state.rangeEnd = null;
-                updateDisplayDate(getLocalYYYYMMDD());
-
-                // New Card Entrance
-                entryCard.classList.remove('card-fold-exit');
-                entryCard.classList.add('card-slide-in');
-                
-                btn.innerText = '✓  Saved to Calendar';
-                btn.classList.add('success-mode');
-
-                setTimeout(() => {
-                    entryCard.classList.remove('card-slide-in');
-                    btn.innerText = originalText;
-                    btn.classList.remove('success-mode');
-                    els.localInput.focus();
-                }, 1500);
-            }, 850);
-        } else {
-            // Fallback for safety
-            btn.innerText = '✓  Saved!';
-            setTimeout(() => btn.innerText = originalText, 1500);
+        if (window.navigator && window.navigator.vibrate) {
+            window.navigator.vibrate(15);
         }
+
+        // Form Reset
+        els.localInput.value = '';
+        autoScaleInput();
+        els.usdOutput.innerText = '0.00';
+        els.notesInput.value = '';
+        els.catBtns.forEach(b => b.classList.remove('selected'));
+        state.selectedCategory = null;
+        state.rangeStart = null;
+        state.rangeEnd = null;
+        updateDisplayDate(getLocalYYYYMMDD());
+
+        // Focus for next entry
+        setTimeout(() => els.localInput.focus(), 100);
+
+        // Reset button state
+        setTimeout(() => {
+            btn.innerText = originalText;
+            btn.classList.remove('success-mode');
+        }, 1500);
+
     } catch (err) {
         console.error("Save error:", err);
         alert("Failed to save: " + (err.message || "Unknown error"));
@@ -1542,7 +1493,7 @@ function handleCalendarDayClick(key, dateObj, dayData) {
         }
     }
 
-    // 2. Select this date as the primary focus in Add tab
+    // 2. Select this date as the primary focus in Expense tab
     const dateInput = document.getElementById('expense-date');
     if (dateInput) {
         dateInput.value = key;
