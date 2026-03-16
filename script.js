@@ -1883,6 +1883,8 @@ function renderModalCalendar() {
         div.innerHTML = `<span class="day-num">${day}</span>`;
         div.onclick = () => {
             handleCalendarDayClick(key, dateObj, null);
+            // Always sync selectedDate to the tapped key so single-day display works
+            state.selectedDate = key;
             renderModalCalendar();
             const hint = document.getElementById('modal-range-hint');
             if (state.rangeStart && state.rangeEnd) {
