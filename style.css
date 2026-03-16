@@ -333,9 +333,11 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     margin-bottom: 20px;
     background: white;
-    padding: 12px 16px;
+    padding: 12px 14px;
     border-radius: 16px;
     border: 1px solid var(--border);
     box-shadow: 0 2px 8px rgba(0,0,0,0.02);
@@ -387,8 +389,9 @@ body {
 .mini-stat-item {
     display: flex;
     flex-direction: column;
-    width: 90px; /* Targeted width for alignment */
-    overflow: hidden;
+    min-width: 70px;
+    max-width: 110px;
+    flex-shrink: 1;
 }
 
 .mini-stat-item.align-right {
@@ -962,6 +965,19 @@ body {
 .save-btn.success-mode::after {
     left: 100%;
     transition: 0.5s;
+}
+
+/* GPS local currency button — distinct but on-brand */
+.gps-btn {
+    background: #f0fdf4 !important;
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
+    font-size: 0.7rem !important;
+}
+
+.gps-btn:hover {
+    background: var(--primary) !important;
+    color: white !important;
 }
 
 /* Calendar */
