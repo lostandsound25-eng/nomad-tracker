@@ -18,65 +18,12 @@
 }
 
 
-/* ============================================================
-   LOGGED ANIMATION SYSTEM
-   ============================================================ */
-
-/* Ghost card drops straight down into the Log tab */
-@keyframes cardDropToTab {
-    0% {
-        transform: translate(0, 0) scale(1);
-        filter: brightness(1);
-        opacity: 1;
-    }
-    40% {
-        transform: translate(0, 20px) scale(0.95);
-        filter: brightness(1.1);
-        opacity: 1;
-    }
-    100% {
-        transform: translate(var(--fly-x), var(--fly-y)) scale(0.05);
-        filter: brightness(0.5);
-        opacity: 0;
-    }
-}
-
-.card-drop-ghost {
-    position: fixed;
-    z-index: 9999;
-    pointer-events: none;
-    border-radius: 20px;
-    animation: cardDropToTab 0.6s cubic-bezier(0.5, 0, 0.7, 0.1) forwards;
-    transform-origin: center center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    background: white;
-}
-
-
-/* Original card fades and scales down slightly as it's replaced */
-@keyframes cardFadeOut {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    100% {
-        transform: scale(0.9);
-        opacity: 0;
-    }
-}
-
-.card-fade-out {
-    animation: cardFadeOut 0.2s ease-out forwards;
-}
-
-
 /* Fresh empty card slides up into place */
 @keyframes cardSlideIn {
     0% {
-        transform: translateY(32px);
+        transform: translateY(15px);
         opacity: 0;
     }
-
     100% {
         transform: translateY(0);
         opacity: 1;
@@ -84,8 +31,9 @@
 }
 
 .card-slide-in {
-    animation: cardSlideIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: cardSlideIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
+
 
 /* Log tab icon bounces green when ghost arrives */
 @keyframes tabPulseArrive {

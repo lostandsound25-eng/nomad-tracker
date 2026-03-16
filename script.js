@@ -1282,91 +1282,27 @@ async function saveExpense() {
         renderHistory();
         updateDailyProgress();
         updateSplitIndicator();
-        const hint = document.getElementById('range-selection-hint');
         if (hint) hint.innerText = "Tap dates to select range";
         fetchTripExpenses();
 
-        // ── DROPPING LOGGED ANIMATION ──────────────────────────────
-        const entryCard = document.querySelector('.entry-card');
-        const logTabBtn = document.querySelector('.tab-btn[onclick*="history"]');
+        // ── SIMPLE SAVE FEEDBACK ──────────────────────────────
+        // 1. Quick Success Feedback on Button & Tab
+        btn.innerText = '✓  Logged!';
+        btn.classList.add('success-mode');
+        
+        if (logTabBtn) {
+            logTabBtn.classList.add('tab-pulse-arrive');
+            setTimeout(() => logTabBtn.classList.remove('tab-pulse-arrive'), 500);
+        }
+        
+        if (window.navigator && window.navigator.vibrate) {
+            window.navigator.vibrate(15);
+        }
 
-        if (entryCard && logTabBtn) {
-            const cardRect = entryCard.getBoundingClientRect();
-            const tabRect = logTabBtn.getBoundingClientRect();
-
-            // Target: centre of Log tab icon
-            const targetX = tabRect.left + tabRect.width / 2;
-            const targetY = tabRect.top + tabRect.height / 2;
-
-            // Source: centre of entry card
-            const srcX = cardRect.left + cardRect.width / 2;
-            const srcY = cardRect.top + cardRect.height / 2;
-
-            // Delta
-            const flyX = targetX - srcX;
-            const flyY = targetY - srcY;
-
-            // 1. Create ghost clone
-            const ghost = entryCard.cloneNode(true);
-            ghost.className = 'entry-card card-drop-ghost';
-            ghost.style.left = cardRect.left + 'px';
-            ghost.style.top = cardRect.top + 'px';
-            ghost.style.width = cardRect.width + 'px';
-            ghost.style.height = cardRect.height + 'px';
-            ghost.style.setProperty('--fly-x', flyX + 'px');
-            ghost.style.setProperty('--fly-y', flyY + 'px');
-            
-            // 2. Fade the real card and launch the ghost
-            entryCard.classList.add('card-fade-out');
-            document.body.appendChild(ghost);
-
-            // 3. Pulse Log tab when ghost hits it (0.6s animation)
-            setTimeout(() => {
-                logTabBtn.classList.add('tab-pulse-arrive');
-                if (window.navigator && window.navigator.vibrate) {
-                    window.navigator.vibrate(15);
-                }
-                setTimeout(() => logTabBtn.classList.remove('tab-pulse-arrive'), 500);
-            }, 550);
-
-            // 4. Cleanup and Reset
-            ghost.addEventListener('animationend', () => {
-                ghost.remove();
-                entryCard.classList.remove('card-fade-out');
-
-                // Reset form
-                els.localInput.value = '';
-                autoScaleInput();
-                els.usdOutput.innerText = '0.00';
-                els.notesInput.value = '';
-                els.catBtns.forEach(b => b.classList.remove('selected'));
-                state.selectedCategory = null;
-                state.rangeStart = null;
-                state.rangeEnd = null;
-                updateDisplayDate(getLocalYYYYMMDD());
-
-                // Slide fresh card in
-                entryCard.classList.add('card-slide-in');
-                setTimeout(() => {
-                    entryCard.classList.remove('card-slide-in');
-                    els.localInput.focus();
-                }, 500);
-
-                // Quick "Logged!" flash on button
-                btn.innerText = '✓  Logged!';
-
-
-                btn.classList.add('success-mode');
-                setTimeout(() => {
-                    btn.innerText = originalText;
-                    btn.classList.remove('success-mode');
-                }, 1800);
-            }, { once: true });
-
-        } else {
-            // Fallback if DOM elements not found
-            btn.innerText = '✓  Logged!';
-            btn.classList.add('success-mode');
+        // 2. Reset Form & Animate Fresh Card In
+        // Small delay so users see the "Logged!" state before the clear
+        setTimeout(() => {
+            // Reset form
             els.localInput.value = '';
             autoScaleInput();
             els.usdOutput.innerText = '0.00';
@@ -1375,20 +1311,30 @@ async function saveExpense() {
             state.selectedCategory = null;
             state.rangeStart = null;
             state.rangeEnd = null;
-            setTimeout(() => {
-                btn.innerText = originalText;
-                btn.classList.remove('success-mode');
-            }, 2000);
-        }
+            updateDisplayDate(getLocalYYYYMMDD());
 
+            // Reset button
+            btn.innerText = originalText;
+            btn.classList.remove('success-mode');
+
+            // Subtle slide-up for the new "clean slate"
+            if (entryCard) {
+                entryCard.classList.remove('card-slide-in');
+                void entryCard.offsetWidth; // Trigger reflow
+                entryCard.classList.add('card-slide-in');
+                
+                // Focus the amount for the next entry
+                setTimeout(() => els.localInput.focus(), 300);
+            }
+        }, 600);
 
     } catch (err) {
         console.error("Save error:", err);
         alert("Failed to save: " + (err.message || "Unknown error"));
     }
-}
 
 // --- Network & Offline Sync ---
+
 
 function updateNetworkStatus() {
     if (navigator.onLine) {
@@ -2152,4 +2098,5 @@ function injectLocalCurrencyButton(code) {
 
     // Insert at the front
     grid.insertBefore(btn, grid.firstChild);
+}
 }
