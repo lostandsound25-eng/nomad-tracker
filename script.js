@@ -1097,13 +1097,14 @@ async function updateFxRate() {
     }
 }
 
-function formatDateShort(isoStr) {
+/**
+ * Formats ISO date string to "MMM DD, YYYY"
+ */
+function formatDateFull(isoStr) {
     if (!isoStr) return "";
     const d = new Date(isoStr + 'T12:00:00');
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = String(d.getFullYear()).slice(-2);
-    return `${day}/${month}/${year}`;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
 function updateDisplayDate(val) {
@@ -1111,33 +1112,27 @@ function updateDisplayDate(val) {
     const isToday = (val === getLocalYYYYMMDD());
 
     if (state.rangeStart && state.rangeEnd) {
-        if (els.dateLabelText) els.dateLabelText.innerText = "Range";
+        if (els.dateLabelText) els.dateLabelText.innerText = "Range Selected";
         if (els.displayDateText) {
-            // Stack dates vertically for range to keep calendar icon fixed
+            // Stack dates vertically with "thru" for absolute clarity and fixed width
             els.displayDateText.innerHTML = `
-                <div style="font-size: 0.8rem; line-height: 1.1;">
-                ${formatDateShort(state.rangeStart)}<br>
-                ${formatDateShort(state.rangeEnd)}
+                <div style="font-size: 0.8rem; line-height: 1.2; text-align: left;">
+                    <div style="font-weight: 800;">${formatDateFull(state.rangeStart)}</div>
+                    <div style="font-size: 0.55rem; color: var(--primary); letter-spacing: 0.1em; margin: -2px 0;">THRU</div>
+                    <div style="font-weight: 800;">${formatDateFull(state.rangeEnd)}</div>
                 </div>
             `;
         }
     } else {
         if (isToday) {
             if (els.dateLabelText) els.dateLabelText.innerText = "Today";
-            if (els.displayDateText) {
-                const d = new Date(val + 'T12:00:00');
-                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                els.displayDateText.innerText = `${months[d.getMonth()]} ${d.getDate()}`;
-                els.displayDateText.style.fontSize = '0.95rem';
-                els.displayDateText.style.lineHeight = '1';
-            }
         } else {
-            if (els.dateLabelText) els.dateLabelText.innerText = "Date";
-            if (els.displayDateText) {
-                els.displayDateText.innerText = formatDateShort(val);
-                els.displayDateText.style.fontSize = '0.95rem';
-                els.displayDateText.style.lineHeight = '1';
-            }
+            if (els.dateLabelText) els.dateLabelText.innerText = "Selected Date";
+        }
+        
+        if (els.displayDateText) {
+            els.displayDateText.innerText = formatDateFull(val);
+            els.displayDateText.style.fontSize = '0.95rem';
         }
     }
     

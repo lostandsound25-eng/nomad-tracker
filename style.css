@@ -618,13 +618,19 @@ body {
     justify-content: space-between;
     gap: 12px;
     cursor: pointer;
-    background: white;
-    padding: 12px 16px;
-    border-radius: 18px;
-    border: 1px solid var(--border);
-    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    min-height: 64px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    background: transparent; /* Seamless floating look */
+    padding: 10px 4px; /* Tightened for balance */
+    border-radius: 12px;
+    border: 1px solid transparent; /* No box unless hovered */
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 56px;
+    width: 100%;
+}
+
+.meta-trigger-clean:hover {
+    background: #f9fafb;
+    border-color: var(--border);
+    transform: translateY(-1px);
 }
 
 .meta-trigger-clean:hover {
@@ -639,7 +645,7 @@ body {
     flex-direction: column;
     gap: 2px;
     overflow: hidden;
-    flex: 1; /* Allow stack to take available space */
+    flex: 1; 
 }
 
 .meta-sub-label {
@@ -647,17 +653,17 @@ body {
     font-weight: 800;
     text-transform: uppercase;
     color: var(--text-dim);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.12em; /* Enhanced 'Feng Shui' letter spacing */
 }
 
 .meta-main-value {
-    font-size: 0.95rem;
-    font-weight: 700;
+    font-size: 0.9rem;
+    font-weight: 800; /* Increased weight for clarity */
     color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
+    line-height: 1.1;
 }
 
 .trigger-icon-green {
