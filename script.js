@@ -1112,7 +1112,7 @@ function formatDateFull(isoStr) {
 
 function updateDisplayDate(val) {
     state.selectedDate = val;
-    
+
     // Kill the sub-label text to maximize the focal point: the date itself
     if (els.dateLabelText) els.dateLabelText.innerText = "";
 
@@ -1135,13 +1135,13 @@ function updateDisplayDate(val) {
     } else {
         if (els.displayDateText) {
             els.displayDateText.innerText = formatDateFull(val);
-            els.displayDateText.style.fontSize = '1.15rem'; 
+            els.displayDateText.style.fontSize = '1.15rem';
             els.displayDateText.style.fontWeight = '900';
             els.displayDateText.style.letterSpacing = '-0.02em';
             els.displayDateText.closest('.meta-trigger-clean').style.minHeight = '56px';
         }
     }
-    
+
     updateDailyProgress();
     updateSplitIndicator();
 }
@@ -1291,16 +1291,16 @@ async function saveExpense() {
         const logTabBtn = document.querySelector('.tab-btn[onclick*="history"]');
 
         if (entryCard && logTabBtn) {
-            const cardRect  = entryCard.getBoundingClientRect();
-            const tabRect   = logTabBtn.getBoundingClientRect();
+            const cardRect = entryCard.getBoundingClientRect();
+            const tabRect = logTabBtn.getBoundingClientRect();
 
             // Target: centre of Log tab icon
-            const targetX = tabRect.left + tabRect.width  / 2;
-            const targetY = tabRect.top  + tabRect.height / 2;
+            const targetX = tabRect.left + tabRect.width / 2;
+            const targetY = tabRect.top + tabRect.height / 2;
 
             // Source: centre of entry card
-            const srcX = cardRect.left + cardRect.width  / 2;
-            const srcY = cardRect.top  + cardRect.height / 2;
+            const srcX = cardRect.left + cardRect.width / 2;
+            const srcY = cardRect.top + cardRect.height / 2;
 
             // Delta (ghost starts at card position, needs to end at tab)
             const flyX = targetX - srcX;
@@ -1309,9 +1309,9 @@ async function saveExpense() {
             // 1. Create ghost clone fixed over the card
             const ghost = entryCard.cloneNode(true);
             ghost.className = 'entry-card card-fly-ghost';
-            ghost.style.left   = cardRect.left + 'px';
-            ghost.style.top    = cardRect.top  + 'px';
-            ghost.style.width  = cardRect.width  + 'px';
+            ghost.style.left = cardRect.left + 'px';
+            ghost.style.top = cardRect.top + 'px';
+            ghost.style.width = cardRect.width + 'px';
             ghost.style.height = cardRect.height + 'px';
             ghost.style.setProperty('--fly-x', flyX + 'px');
             ghost.style.setProperty('--fly-y', flyY + 'px');
