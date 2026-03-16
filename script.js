@@ -242,7 +242,7 @@ function init() {
     els.homeLabel.innerText = state.homeCurrency;
     els.budgetInput.value = state.dailyBudget;
     els.settingsHomeSymbol.innerText = CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency;
-    
+
     // Sync Display label
     if (els.displaySpendingCurrency) {
         els.displaySpendingCurrency.innerText = `${state.spendingCurrency} (${CURRENCY_SYMBOLS[state.spendingCurrency] || ''})`;
@@ -466,7 +466,7 @@ function init() {
         const joinInput = document.getElementById('join-code-input');
         const code = joinInput.value.trim().toUpperCase();
         const btn = document.getElementById('btn-join-trip');
-        
+
         if (!code) {
             alert("Please enter a join code!");
             return;
@@ -499,7 +499,7 @@ function init() {
             document.getElementById('join-code-input').value = '';
             document.getElementById('trip-modal').classList.remove('active');
             await fetchUserTrips(); // Refresh list to see the new trip
-            
+
             // Set it active manually after refresh
             const tripObj = state.trips.find(t => t.id === foundTrip.id);
             if (tripObj) setActiveTrip(tripObj);
@@ -638,7 +638,7 @@ async function handleInviteShare() {
     if (!code) return;
 
     const shareText = `Join my trip "${state.currentTrip.name}" on Nomad Tracker! Use code: ${code}`;
-    
+
     if (navigator.share) {
         try {
             await navigator.share({
@@ -661,7 +661,7 @@ function handleInviteEmail() {
 
     const subject = encodeURIComponent(`Join my trip: ${state.currentTrip.name}`);
     const body = encodeURIComponent(`Hey! Join my trip on Nomad Tracker so we can track expenses together.\n\nTrip Name: ${state.currentTrip.name}\nInvite Code: ${code}\n\nTrack here: ${window.location.href}`);
-    
+
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
 }
 
@@ -678,14 +678,14 @@ function copyToClipboard(text) {
 
 async function fetchUserTrips() {
     if (!state.user) return;
-    
+
     // 1. Fetch real trips from DB
     const { data: memberData, error } = await sb.from('trip_members')
         .select('trips(*)')
         .eq('user_id', state.user.id);
 
-    if (error) { 
-        console.error("Error fetching trips:", error); 
+    if (error) {
+        console.error("Error fetching trips:", error);
     }
 
     let realTrips = memberData ? memberData.map(m => m.trips).filter(Boolean) : [];
@@ -699,8 +699,8 @@ async function fetchUserTrips() {
     if (els.tripSelector) {
         els.tripSelector.innerHTML = allTrips.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     }
-    
-    renderTripMenu(); 
+
+    renderTripMenu();
 
     // 4. Handle initial selection
     if (realTrips.length > 0) {
@@ -1066,7 +1066,7 @@ async function updateFxRate() {
         if (data && data.rates) {
             state.fxRates = data.rates;
             localStorage.setItem('nomad_fx_cache', JSON.stringify(data.rates));
-            
+
             const rateToHome = 1 / data.rates[state.spendingCurrency];
             state.fxRateToHome = rateToHome;
 
@@ -1082,7 +1082,7 @@ async function updateFxRate() {
         updateDailyProgress();
     } catch (err) {
         console.error('FX Fetch failed', err);
-        
+
         // Try to use cached rate
         if (state.fxRates && state.fxRates[state.spendingCurrency]) {
             const rateToHome = 1 / state.fxRates[state.spendingCurrency];
@@ -1091,7 +1091,7 @@ async function updateFxRate() {
         } else {
             els.rateBanner.innerText = `Rates unavailable (Offline)`;
         }
-        
+
         calculateHomeValue();
         updateDailyProgress();
     }
@@ -1109,30 +1109,30 @@ function formatDateFull(isoStr) {
 
 function updateDisplayDate(val) {
     state.selectedDate = val;
-    const isToday = (val === getLocalYYYYMMDD());
+    
+    // Kill the sub-label text to maximize the focal point: the date itself
+    if (els.dateLabelText) els.dateLabelText.innerText = "";
 
     if (state.rangeStart && state.rangeEnd) {
-        if (els.dateLabelText) els.dateLabelText.innerText = "Range Selected";
         if (els.displayDateText) {
-            // Stack dates vertically with "thru" for absolute clarity and fixed width
+            // "THRU" with breathing room and premium letter-spacing
             els.displayDateText.innerHTML = `
-                <div style="font-size: 0.8rem; line-height: 1.2; text-align: left;">
-                    <div style="font-weight: 800;">${formatDateFull(state.rangeStart)}</div>
-                    <div style="font-size: 0.55rem; color: var(--primary); letter-spacing: 0.1em; margin: -2px 0;">THRU</div>
-                    <div style="font-weight: 800;">${formatDateFull(state.rangeEnd)}</div>
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <div style="font-size: 1.05rem; font-weight: 900; letter-spacing: -0.01em;">${formatDateFull(state.rangeStart)}</div>
+                    <div style="font-size: 0.5rem; font-weight: 900; color: var(--primary); letter-spacing: 0.25em; align-self: center; margin-left: -16px; opacity: 0.7;">THRU</div>
+                    <div style="font-size: 1.05rem; font-weight: 900; letter-spacing: -0.01em;">${formatDateFull(state.rangeEnd)}</div>
                 </div>
             `;
+            // Adjust parent height if needed via class or style
+            els.displayDateText.closest('.meta-trigger-clean').style.minHeight = '85px';
         }
     } else {
-        if (isToday) {
-            if (els.dateLabelText) els.dateLabelText.innerText = "Today";
-        } else {
-            if (els.dateLabelText) els.dateLabelText.innerText = "Selected Date";
-        }
-        
         if (els.displayDateText) {
             els.displayDateText.innerText = formatDateFull(val);
-            els.displayDateText.style.fontSize = '0.95rem';
+            els.displayDateText.style.fontSize = '1.15rem'; 
+            els.displayDateText.style.fontWeight = '900';
+            els.displayDateText.style.letterSpacing = '-0.02em';
+            els.displayDateText.closest('.meta-trigger-clean').style.minHeight = '56px';
         }
     }
     
@@ -1288,7 +1288,7 @@ async function saveExpense() {
             note: e.note
         }));
         state.history = [...uiExtras, ...state.history];
-        
+
         renderHistory();
         updateDailyProgress(); // NOW it will reflect the new dollars!
         updateSplitIndicator();
@@ -1340,7 +1340,7 @@ async function syncOfflineData() {
         state.offlineQueue = [];
         localStorage.setItem('nomad_offline_queue', '[]');
         console.log("Sync complete!");
-        
+
         els.sysStatus.innerText = "Synced!";
         setTimeout(() => {
             els.offlineBadge.classList.add('hidden');
@@ -1629,7 +1629,7 @@ function formatCompact(num) {
 
 function updateDailyProgress() {
     // Progress bar now ALWAYS shows actual today's spending
-    const targetDateStr = getLocalYYYYMMDD(); 
+    const targetDateStr = getLocalYYYYMMDD();
 
     let spentTodayHome = 0;
     state.history.forEach(item => {
@@ -1651,7 +1651,7 @@ function updateDailyProgress() {
 
     const isOver = spentTodayHome > budgetHome; // Base comparison on home values
     const diffHome = Math.abs(budgetHome - spentTodayHome);
-    
+
     // Goal is ALWAYS home currency for consistency as requested
     const goalSym = CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency;
 
@@ -1674,7 +1674,7 @@ function updateDailyProgress() {
             els.budgetStatusLabel.innerText = isOver ? "Over Budget" : "Remaining";
         }
     }
-    
+
     if (els.dailyProgressCard) {
         if (isOver) els.dailyProgressCard.classList.add('over-budget');
         else els.dailyProgressCard.classList.remove('over-budget');
@@ -1947,7 +1947,7 @@ function selectSpendingCurrency(code) {
     const cur = ALL_CURRENCIES[code] || { symbol: code };
     state.spendingCurrency = code;
     localStorage.setItem('nomad_last_spending_currency', state.spendingCurrency);
-    
+
     // Sync UI
     if (els.spendingSelect) els.spendingSelect.value = code;
     if (els.displaySpendingCurrency) {
@@ -1955,11 +1955,11 @@ function selectSpendingCurrency(code) {
         els.displaySpendingCurrency.innerText = `${code} (${sym})`;
     }
     if (els.symbol) els.symbol.innerText = cur.symbol || code;
-    
+
     updateFxRate();
     calculateHomeValue();
     updateDailyProgress();
-    
+
     if (els.spendingCurrencyModal) els.spendingCurrencyModal.classList.remove('active');
 }
 
@@ -1967,7 +1967,7 @@ function renderSpendingCurrencyModal(filterText = '') {
     const list = els.spendingCurrencyList;
     if (!list) return;
     list.innerHTML = '';
-    
+
     const query = filterText.toLowerCase().trim();
 
     // Kill full menu unless searching for a pristine look
