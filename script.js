@@ -1315,16 +1315,24 @@ async function saveExpense() {
             ghost.style.height = cardRect.height + 'px';
             ghost.style.setProperty('--fly-x', flyX + 'px');
             ghost.style.setProperty('--fly-y', flyY + 'px');
-            document.body.appendChild(ghost);
-
-            // 2. Fold out the real card immediately
+            // 2. Fold the real card and launch the ghost
             entryCard.classList.add('card-fold-exit');
+            
+            // Give the fold a tiny head start for that "lifting off" feel
+            setTimeout(() => {
+                document.body.appendChild(ghost);
+            }, 50);
 
-            // 3. Pulse Log tab when ghost is ~75% through its journey
+            // 3. Pulse Log tab precisely when ghost "hits" it
+            // The animation is 1.1s, it hits the tab at exactly 1.1s
             setTimeout(() => {
                 logTabBtn.classList.add('tab-pulse-arrive');
+                // Haptic-like vibe (visual only)
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(15);
+                }
                 setTimeout(() => logTabBtn.classList.remove('tab-pulse-arrive'), 600);
-            }, 800);
+            }, 1050);
 
             // 4. After ghost lands: clean up, reset form, slide fresh card in
             ghost.addEventListener('animationend', () => {
@@ -1344,10 +1352,16 @@ async function saveExpense() {
 
                 // Slide fresh card in
                 entryCard.classList.add('card-slide-in');
-                setTimeout(() => entryCard.classList.remove('card-slide-in'), 500);
+                
+                // Workflow improvement: Auto-focus the input for the NEXT expense
+                setTimeout(() => {
+                    entryCard.classList.remove('card-slide-in');
+                    els.localInput.focus();
+                }, 500);
 
                 // Quick "Logged!" flash on button
                 btn.innerText = '✓  Logged!';
+
                 btn.classList.add('success-mode');
                 setTimeout(() => {
                     btn.innerText = originalText;
