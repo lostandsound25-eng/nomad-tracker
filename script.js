@@ -1282,6 +1282,7 @@ async function saveExpense() {
         renderHistory();
         updateDailyProgress();
         updateSplitIndicator();
+        const hint = document.getElementById('range-selection-hint');
         if (hint) hint.innerText = "Tap dates to select range";
         fetchTripExpenses();
 
