@@ -379,12 +379,20 @@ body {
 
 .progress-info-minimal {
     display: flex;
-    gap: 24px;
+    gap: 32px;
+    flex: 1;
+    justify-content: flex-end;
 }
 
 .mini-stat-item {
     display: flex;
     flex-direction: column;
+    min-width: 100px; /* Fixed anchor for labels */
+}
+
+.mini-stat-item.align-right {
+    text-align: right;
+    align-items: flex-end;
 }
 
 .mini-label {
@@ -400,6 +408,13 @@ body {
     font-size: 1.15rem;
     font-weight: 900;
     color: var(--text);
+    transition: font-size 0.2s; /* Support for auto-scaling */
+}
+
+.smart-scaling {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .align-right {
@@ -594,29 +609,46 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 12px;
     cursor: pointer;
-    font-size: 0.95rem;
-    font-weight: 700;
-    height: 44px;
-    color: var(--text);
-    transition: all 0.2s ease;
-    padding: 0 4px;
-    width: 100%;
+    background: white;
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    min-height: 56px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
 .meta-trigger-clean:hover {
-    color: var(--primary);
+    border-color: var(--primary);
+    background: white;
     transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
 }
 
-.trigger-text {
+.trigger-stack {
     display: flex;
-    align-items: center;
-    gap: 4px;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+}
+
+.meta-sub-label {
+    font-size: 0.55rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+}
+
+.meta-main-value {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .trigger-icon-green {
@@ -928,6 +960,64 @@ body {
 .calendar-header h3 {
     font-size: 1.1rem;
     font-weight: 800;
+}
+
+/* Currency Modal Extensions */
+.currency-search-container {
+    padding: 0 1rem 1rem 1rem;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+}
+
+.quick-select-header {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 0 1rem 0.5rem 1rem;
+    letter-spacing: 0.05em;
+}
+
+.currency-grid-mini {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    padding: 0 1rem 1.5rem 1rem;
+}
+
+.quick-cur-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 8px 0;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.quick-cur-btn:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.spending-currency-list-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.audit-item:hover {
+    background: #f0fdf4 !important; /* light green */
+    border-color: var(--primary-dim) !important;
+}
+
+.audit-item:hover strong {
+    color: var(--primary);
 }
 
 .cal-nav {

@@ -77,17 +77,23 @@ const CURRENCY_SYMBOLS = {
 };
 
 const ALL_CURRENCIES = {
-    USD: 'US Dollar', EUR: 'Euro', GBP: 'British Pound',
-    AUD: 'Australian Dollar', CAD: 'Canadian Dollar',
-    IDR: 'Indonesian Rupiah', THB: 'Thai Baht', VND: 'Vietnamese Dong',
-    LAK: 'Lao Kip', KHR: 'Cambodian Riel', JPY: 'Japanese Yen',
-    MXN: 'Mexican Peso', SGD: 'Singapore Dollar', CHF: 'Swiss Franc',
-    INR: 'Indian Rupee', CNY: 'Chinese Yuan', ZAR: 'South African Rand',
-    NZD: 'New Zealand Dollar', HKD: 'Hong Kong Dollar', MYR: 'Malaysian Ringgit',
-    PHP: 'Philippine Peso', KRW: 'South Korean Won', BRL: 'Brazilian Real',
-    RUB: 'Russian Ruble', TRY: 'Turkish Lira', AED: 'UAE Dirham',
-    COP: 'Colombian Peso', ARS: 'Argentine Peso', CLP: 'Chilean Peso',
-    PEN: 'Peruvian Sol', DKK: 'Danish Krone', SEK: 'Swedish Krona', NOK: 'Norwegian Krone'
+    USD: { name: 'US Dollar', symbol: '$', keywords: 'united states america' },
+    EUR: { name: 'Euro', symbol: '€', keywords: 'europe france germany italy spain' },
+    GBP: { name: 'British Pound', symbol: '£', keywords: 'united kingdom england london' },
+    AUD: { name: 'Australian Dollar', symbol: '$', keywords: 'australia sydney' },
+    CAD: { name: 'Canadian Dollar', symbol: '$', keywords: 'canada toronto' },
+    IDR: { name: 'Indonesian Rupiah', symbol: 'Rp', keywords: 'indonesia bali jakarta' },
+    THB: { name: 'Thai Baht', symbol: '฿', keywords: 'thailand bangkok' },
+    VND: { name: 'Vietnamese Dong', symbol: '₫', keywords: 'vietnam hanoi' },
+    LAK: { name: 'Lao Kip', symbol: '₭', keywords: 'laos' },
+    KHR: { name: 'Cambodian Riel', symbol: '៛', keywords: 'cambodia angkor' },
+    JPY: { name: 'Japanese Yen', symbol: '¥', keywords: 'japan tokyo' },
+    MXN: { name: 'Mexican Peso', symbol: '$', keywords: 'mexico cancun' },
+    SGD: { name: 'Singapore Dollar', symbol: '$', keywords: 'singapore' },
+    MYR: { name: 'Malaysian Ringgit', symbol: 'RM', keywords: 'malaysia kuala lumpur' },
+    PHP: { name: 'Philippine Peso', symbol: '₱', keywords: 'philippines manila' },
+    KRW: { name: 'South Korean Won', symbol: '₩', keywords: 'korea seoul' },
+    INR: { name: 'Indian Rupee', symbol: '₹', keywords: 'india delhi mumbai' }
 };
 
 // UI Elements
@@ -227,7 +233,28 @@ function init() {
     els.homeLabel.innerText = state.homeCurrency;
     els.budgetInput.value = state.dailyBudget;
     els.settingsHomeSymbol.innerText = CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency;
+    
+    // Sync Display label
+    if (els.displaySpendingCurrency) {
+        els.displaySpendingCurrency.innerText = `${state.spendingCurrency} (${CURRENCY_SYMBOLS[state.spendingCurrency] || ''})`;
+    }
+
     autoScaleInput();
+
+    // Currency Modal Listeners
+    const searchInput = document.getElementById('spending-currency-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            renderSpendingCurrencyModal(e.target.value);
+        });
+    }
+
+    document.querySelectorAll('.quick-cur-btn').forEach(btn => {
+        btn.onclick = () => {
+            const code = btn.getAttribute('data-code');
+            selectSpendingCurrency(code);
+        };
+    });
 
     // Fetch Initial Rates
     updateFxRate();
@@ -1078,6 +1105,8 @@ function updateDisplayDate(val) {
         if (els.dateLabelText) els.dateLabelText.innerText = "Range";
         if (els.displayDateText) {
             els.displayDateText.innerText = `${formatDateShort(state.rangeStart)} - ${formatDateShort(state.rangeEnd)}`;
+            els.displayDateText.style.fontSize = '0.75rem'; // Smaller font for range
+            els.displayDateText.style.lineHeight = '1.1'; // Adjust line height for stacking
         }
     } else {
         if (isToday) {
@@ -1086,19 +1115,19 @@ function updateDisplayDate(val) {
                 const d = new Date(val + 'T12:00:00');
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 els.displayDateText.innerText = `${months[d.getMonth()]} ${d.getDate()}`;
+                els.displayDateText.style.fontSize = '0.9rem'; // Default font size
+                els.displayDateText.style.lineHeight = '1';
             }
         } else {
             if (els.dateLabelText) els.dateLabelText.innerText = "Date";
             if (els.displayDateText) {
                 els.displayDateText.innerText = formatDateShort(val);
+                els.displayDateText.style.fontSize = '0.9rem'; // Default font size
+                els.displayDateText.style.lineHeight = '1';
             }
         }
     }
     
-    // Aesthetic fix: resize font for range if too long
-    if (els.displayDateText) {
-        els.displayDateText.style.fontSize = (state.rangeStart && state.rangeEnd) ? '0.75rem' : '0.9rem';
-    }
     updateDailyProgress();
     updateSplitIndicator();
 }
@@ -1584,6 +1613,12 @@ function updateDashboard() {
     renderCategoryDonut(totalUsd);
 }
 
+function formatCompact(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return formatAmt(num);
+}
+
 function updateDailyProgress() {
     // Progress bar now ALWAYS shows actual today's spending
     const targetDateStr = getLocalYYYYMMDD(); 
@@ -1597,40 +1632,49 @@ function updateDailyProgress() {
     });
 
     const budgetHome = state.dailyBudget;
-
     let spentToday = spentTodayHome;
-    let budget = budgetHome;
     let sym = CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency;
 
     // Convert to spending currency if toggled
     if (state.progressCurrency === 'spending' && state.fxRateToHome > 0) {
         spentToday = spentTodayHome / state.fxRateToHome;
-        budget = budgetHome / state.fxRateToHome;
         sym = CURRENCY_SYMBOLS[state.spendingCurrency] || state.spendingCurrency;
     }
 
-    const isOver = spentToday > budget;
-    const diff = Math.abs(budget - spentToday);
+    const isOver = spentTodayHome > budgetHome; // Base comparison on home values
+    const diffHome = Math.abs(budgetHome - spentTodayHome);
+    
+    // Goal is ALWAYS home currency for consistency as requested
+    const goalSym = CURRENCY_SYMBOLS[state.homeCurrency] || state.homeCurrency;
 
-    if (els.todaySpent) els.todaySpent.innerText = `${sym}${formatAmt(spentToday)}`;
+    if (els.todaySpent) {
+        els.todaySpent.innerText = `${sym}${formatCompact(spentToday)}`;
+        // Auto-scale font size if it's too long
+        els.todaySpent.style.fontSize = (spentToday > 99999) ? '0.9rem' : '1.15rem';
+    }
+
     if (els.todayRemaining) {
-        els.todayRemaining.innerText = `${sym}${formatAmt(diff)}`;
+        // Remaining is also toggled to match "Spent" for layout symmetry
+        let diffDisplay = diffHome;
+        if (state.progressCurrency === 'spending' && state.fxRateToHome > 0) {
+            diffDisplay = diffHome / state.fxRateToHome;
+        }
+        els.todayRemaining.innerText = `${sym}${formatCompact(diffDisplay)}`;
+        els.todayRemaining.style.fontSize = (diffDisplay > 99999) ? '0.9rem' : '1.15rem';
+
         if (els.budgetStatusLabel) {
             els.budgetStatusLabel.innerText = isOver ? "Over Budget" : "Remaining";
         }
     }
     
-    // Add red theme if over budget
     if (els.dailyProgressCard) {
-        if (isOver) {
-            els.dailyProgressCard.classList.add('over-budget');
-        } else {
-            els.dailyProgressCard.classList.remove('over-budget');
-        }
+        if (isOver) els.dailyProgressCard.classList.add('over-budget');
+        else els.dailyProgressCard.classList.remove('over-budget');
     }
 
-    if (els.miniBudgetSymbol) els.miniBudgetSymbol.innerText = sym;
-    if (els.budgetInput) els.budgetInput.value = Math.round(budget);
+    // Budget input stays Home Currency as requested
+    if (els.miniBudgetSymbol) els.miniBudgetSymbol.innerText = goalSym;
+    if (els.budgetInput) els.budgetInput.value = Math.round(budgetHome);
 
     // Update Toggle UI active states
     if (els.toggleHomeCode && els.toggleSpendingCode) {
@@ -1645,7 +1689,7 @@ function updateDailyProgress() {
         els.toggleSpendingCode.innerText = state.spendingCurrency;
     }
 
-    let percent = budget > 0 ? (spentToday / budget) * 100 : 0;
+    let percent = budgetHome > 0 ? (spentTodayHome / budgetHome) * 100 : 0;
     const rawPercent = percent;
     if (percent > 100) percent = 100;
 
@@ -1891,51 +1935,57 @@ function generateExampleHistory() {
 
 document.addEventListener('DOMContentLoaded', init);
 
-function renderSpendingCurrencyModal() {
+function selectSpendingCurrency(code) {
+    const cur = ALL_CURRENCIES[code] || { symbol: code };
+    state.spendingCurrency = code;
+    localStorage.setItem('nomad_last_spending_currency', state.spendingCurrency);
+    
+    // Sync UI
+    if (els.spendingSelect) els.spendingSelect.value = code;
+    if (els.displaySpendingCurrency) {
+        const sym = cur.symbol || code;
+        els.displaySpendingCurrency.innerText = `${code} (${sym})`;
+    }
+    if (els.symbol) els.symbol.innerText = cur.symbol || code;
+    
+    updateFxRate();
+    calculateHomeValue();
+    updateDailyProgress();
+    
+    if (els.spendingCurrencyModal) els.spendingCurrencyModal.classList.remove('active');
+}
+
+function renderSpendingCurrencyModal(filterText = '') {
     const list = els.spendingCurrencyList;
     if (!list) return;
     list.innerHTML = '';
     
-    const currencies = [
-        { code: 'USD', name: 'USD ($)', symbol: '$' },
-        { code: 'EUR', name: 'EUR (€)', symbol: '€' },
-        { code: 'GBP', name: 'GBP (£)', symbol: '£' },
-        { code: 'IDR', name: 'IDR (Rp)', symbol: 'Rp' },
-        { code: 'THB', name: 'THB (฿)', symbol: '฿' },
-        { code: 'VND', name: 'VND (₫)', symbol: '₫' },
-        { code: 'LAK', name: 'LAK (₭)', symbol: '₭' },
-        { code: 'KHR', name: 'KHR (៛)', symbol: '៛' },
-        { code: 'MXN', name: 'MXN ($)', symbol: '$' },
-        { code: 'JPY', name: 'JPY (¥)', symbol: '¥' }
-    ];
+    const query = filterText.toLowerCase().trim();
 
-    currencies.forEach(cur => {
-        const item = document.createElement('div');
-        item.className = 'audit-item';
-        item.style.cursor = 'pointer';
-        item.innerHTML = `
-            <div class="audit-item-info">
-                <strong>${cur.code}</strong>
-                <span class="tiny-label">${cur.name}</span>
-            </div>
-            <div class="audit-item-meta">
-                <strong>${cur.symbol}</strong>
-            </div>
-        `;
-        item.onclick = () => {
-            state.spendingCurrency = cur.code;
-            localStorage.setItem('nomad_last_spending_currency', state.spendingCurrency);
-            
-            // Sync hidden select if needed for other logic
-            els.spendingSelect.value = cur.code;
-            els.displaySpendingCurrency.innerText = `${cur.code} (${cur.symbol})`;
-            els.symbol.innerText = cur.symbol;
-            
-            updateFxRate();
-            calculateHomeValue();
-            
-            els.spendingCurrencyModal.classList.remove('active');
-        };
-        list.appendChild(item);
+    Object.entries(ALL_CURRENCIES).forEach(([code, data]) => {
+        const matchesCode = code.toLowerCase().includes(query);
+        const matchesName = data.name.toLowerCase().includes(query);
+        const matchesKeywords = data.keywords && data.keywords.toLowerCase().includes(query);
+
+        if (!query || matchesCode || matchesName || matchesKeywords) {
+            const item = document.createElement('div');
+            item.className = 'audit-item';
+            item.style.cursor = 'pointer';
+            item.innerHTML = `
+                <div class="audit-item-info">
+                    <strong>${code}</strong>
+                    <span class="tiny-label">${data.name}</span>
+                </div>
+                <div class="audit-item-meta">
+                    <strong>${data.symbol}</strong>
+                </div>
+            `;
+            item.onclick = () => selectSpendingCurrency(code);
+            list.appendChild(item);
+        }
     });
+
+    if (list.children.length === 0) {
+        list.innerHTML = '<div class="text-center" style="padding: 2rem; color: var(--text-dim);">No currencies found</div>';
+    }
 }
