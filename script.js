@@ -1115,16 +1115,19 @@ function updateDisplayDate(val) {
 
     if (state.rangeStart && state.rangeEnd) {
         if (els.displayDateText) {
-            // "THRU" with breathing room and premium letter-spacing
+            // Premium THRU separator: two hairlines flanking the word give it air
             els.displayDateText.innerHTML = `
-                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px;">
                     <div style="font-size: 1.05rem; font-weight: 900; letter-spacing: -0.01em;">${formatDateFull(state.rangeStart)}</div>
-                    <div style="font-size: 0.5rem; font-weight: 900; color: var(--primary); letter-spacing: 0.25em; align-self: center; margin-left: -16px; opacity: 0.7;">THRU</div>
+                    <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                        <div style="flex:1; height:1px; background:var(--primary); opacity:0.25;"></div>
+                        <div style="font-size:0.48rem; font-weight:900; color:var(--primary); letter-spacing:0.3em; opacity:0.75;">THRU</div>
+                        <div style="flex:1; height:1px; background:var(--primary); opacity:0.25;"></div>
+                    </div>
                     <div style="font-size: 1.05rem; font-weight: 900; letter-spacing: -0.01em;">${formatDateFull(state.rangeEnd)}</div>
                 </div>
             `;
-            // Adjust parent height if needed via class or style
-            els.displayDateText.closest('.meta-trigger-clean').style.minHeight = '85px';
+            els.displayDateText.closest('.meta-trigger-clean').style.minHeight = 'auto';
         }
     } else {
         if (els.displayDateText) {
