@@ -77,23 +77,27 @@ const CURRENCY_SYMBOLS = {
 };
 
 const ALL_CURRENCIES = {
-    USD: { name: 'US Dollar', symbol: '$', keywords: 'united states america' },
+    USD: { name: 'US Dollar', symbol: '$', keywords: 'united states america usa' },
     EUR: { name: 'Euro', symbol: '€', keywords: 'europe france germany italy spain' },
-    GBP: { name: 'British Pound', symbol: '£', keywords: 'united kingdom england london' },
+    GBP: { name: 'British Pound', symbol: '£', keywords: 'united kingdom england london uk' },
     AUD: { name: 'Australian Dollar', symbol: '$', keywords: 'australia sydney' },
     CAD: { name: 'Canadian Dollar', symbol: '$', keywords: 'canada toronto' },
     IDR: { name: 'Indonesian Rupiah', symbol: 'Rp', keywords: 'indonesia bali jakarta' },
     THB: { name: 'Thai Baht', symbol: '฿', keywords: 'thailand bangkok' },
     VND: { name: 'Vietnamese Dong', symbol: '₫', keywords: 'vietnam hanoi' },
     LAK: { name: 'Lao Kip', symbol: '₭', keywords: 'laos' },
-    KHR: { name: 'Cambodian Riel', symbol: '៛', keywords: 'cambodia angkor' },
+    KHR: { name: 'Cambodian Riel', symbol: '៛', keywords: 'cambodia angkor phnom riel kriel' },
     JPY: { name: 'Japanese Yen', symbol: '¥', keywords: 'japan tokyo' },
     MXN: { name: 'Mexican Peso', symbol: '$', keywords: 'mexico cancun' },
     SGD: { name: 'Singapore Dollar', symbol: '$', keywords: 'singapore' },
     MYR: { name: 'Malaysian Ringgit', symbol: 'RM', keywords: 'malaysia kuala lumpur' },
     PHP: { name: 'Philippine Peso', symbol: '₱', keywords: 'philippines manila' },
     KRW: { name: 'South Korean Won', symbol: '₩', keywords: 'korea seoul' },
-    INR: { name: 'Indian Rupee', symbol: '₹', keywords: 'india delhi mumbai' }
+    INR: { name: 'Indian Rupee', symbol: '₹', keywords: 'india delhi mumbai' },
+    NZD: { name: 'New Zealand Dollar', symbol: '$', keywords: 'new zealand kiwi' },
+    CHF: { name: 'Swiss Franc', symbol: 'CHf', keywords: 'switzerland swiss' },
+    BRL: { name: 'Brazilian Real', symbol: 'R$', keywords: 'brazil rio' },
+    TRY: { name: 'Turkish Lira', symbol: '₺', keywords: 'turkey istanbul' }
 };
 
 // UI Elements
@@ -1649,8 +1653,11 @@ function updateDailyProgress() {
 
     if (els.todaySpent) {
         els.todaySpent.innerText = `${sym}${formatCompact(spentToday)}`;
-        // Auto-scale font size if it's too long
-        els.todaySpent.style.fontSize = (spentToday > 99999) ? '0.9rem' : '1.15rem';
+        // Aggressive auto-scale for large local amounts (like IDR/VND)
+        if (spentToday > 9999999) els.todaySpent.style.fontSize = '0.7rem';
+        else if (spentToday > 999999) els.todaySpent.style.fontSize = '0.8rem';
+        else if (spentToday > 99999) els.todaySpent.style.fontSize = '0.9rem';
+        else els.todaySpent.style.fontSize = '1.15rem';
     }
 
     if (els.todayRemaining) {
