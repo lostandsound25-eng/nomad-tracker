@@ -168,6 +168,8 @@ function init() {
         // Offline UI
         offlineBadge: document.getElementById('offline-status-badge'),
         sysStatus: document.getElementById('offline-status-text'),
+        offlineBadgeBtn: document.getElementById('offline-status-badge'), // reuse same el
+
 
         // Added for dynamic toggle UI
         toggleHomeCode: document.getElementById('toggle-home-code'),
@@ -188,6 +190,12 @@ function init() {
     window.addEventListener('online', updateNetworkStatus);
     window.addEventListener('offline', updateNetworkStatus);
     updateNetworkStatus(); // Initial check
+    
+    if (els.offlineBadge) {
+        els.offlineBadge.addEventListener('click', () => {
+             if (navigator.onLine) syncOfflineData();
+        });
+    }
 
 
 
@@ -771,6 +779,7 @@ function updateAuthState(user) {
         els.mainApp.classList.remove('hidden');
         els.userEmailDisplay.innerText = user.email;
         fetchUserTrips();
+        updateNetworkStatus(); // NEW: Trigger sync check now that we have a user
     } else {
         els.authOverlay.classList.remove('hidden');
         els.mainApp.classList.add('hidden');
@@ -1380,11 +1389,10 @@ async function syncOfflineData() {
     if (state.offlineQueue.length === 0 || !navigator.onLine) return;
     
     // Safety check: Don't try to sync if not logged in (RLS will block it)
-    if (!state.user) {
-        els.offlineBadge.className = 'offline-badge error';
-        els.sysStatus.innerText = "Login needed";
-        return;
-    }
+    // If state.user is null, it means auth hasn't initialized yet.
+    // We just return silently; updateAuthState will trigger this again once user is confirmed.
+    if (!state.user) return;
+
 
     // 1. Validate & Clean Queue: Skip items that are missing critical Auth/Trip IDs
     const validQueue = state.offlineQueue.filter(item => {
