@@ -1343,13 +1343,21 @@ async function saveExpense() {
 
 // --- Network & Offline Sync ---
 
+window.resetSyncQueue = function() {
+    if (confirm("Clear all unsynced expenses? This cannot be undone and these items will not reach the cloud.")) {
+        state.offlineQueue = [];
+        localStorage.setItem('nomad_offline_queue', '[]');
+        updateNetworkStatus();
+        if (els.offlineNotice) els.offlineNotice.classList.add('hidden');
+        alert("Queue cleared.");
+    }
+};
 
 function updateNetworkStatus() {
     if (navigator.onLine) {
         if (state.offlineQueue.length > 0) {
             syncOfflineData();
         } else {
-            // Always show synced state for a moment when coming online
             showSyncedStatus();
         }
     } else {
@@ -1361,8 +1369,6 @@ function updateNetworkStatus() {
 function showSyncedStatus() {
     els.offlineBadge.className = 'offline-badge synced';
     els.sysStatus.innerText = "Cloud Synced";
-    // Keep it visible on Expense page for a bit, then hide on desktop if needed
-    // But user wants it visible to know it's "taken care of"
     setTimeout(() => {
         if (navigator.onLine && state.offlineQueue.length === 0) {
             els.offlineBadge.classList.add('hidden');
@@ -1372,21 +1378,31 @@ function showSyncedStatus() {
 
 async function syncOfflineData() {
     if (state.offlineQueue.length === 0 || !navigator.onLine) return;
+    
+    // Safety check: Don't try to sync if not logged in (RLS will block it)
+    if (!state.user) {
+        els.offlineBadge.className = 'offline-badge error';
+        els.sysStatus.innerText = "Login needed";
+        return;
+    }
 
     // 1. Validate & Clean Queue: Skip items that are missing critical Auth/Trip IDs
-    // (This prevents "junk" data from a stale session from blocking the whole queue)
     const validQueue = state.offlineQueue.filter(item => {
-        const isValid = item.user_id && item.trip_id && item.category && item.local_amount;
-        if (!isValid) console.warn("Pruning invalid offline item:", item);
-        return isValid;
+        const hasIDs = item.user_id && item.trip_id;
+        const isFromThisUser = item.user_id === state.user.id;
+        const hasData = item.category && item.local_amount;
+        return hasIDs && isFromThisUser && hasData;
     });
 
-    if (validQueue.length === 0) {
+    if (validQueue.length === 0 && state.offlineQueue.length > 0) {
+        console.warn("Pruning invalid/stale items from queue...");
         state.offlineQueue = [];
         localStorage.setItem('nomad_offline_queue', '[]');
         updateNetworkStatus();
         return;
     }
+
+    if (validQueue.length === 0) return;
 
     console.log("Syncing offline data...", validQueue.length);
     els.offlineBadge.className = 'offline-badge syncing';
@@ -1408,15 +1424,20 @@ async function syncOfflineData() {
         els.offlineBadge.className = 'offline-badge error';
         els.sysStatus.innerText = "Sync Retry...";
 
-        // Provide specific feedback in the notice area if it's a known error
         if (els.offlineNotice) {
-            const msg = err.message || "Network timeout";
-            els.offlineNotice.innerText = `Sync Issue: ${msg}. We'll try again automatically!`;
+            let msg = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+            // Truncate very long error strings
+            if (msg.length > 100) msg = msg.substring(0, 97) + "...";
+            
+            els.offlineNotice.innerHTML = `
+                <div style="margin-bottom:4px">Sync failed: ${msg}</div>
+                <button onclick="resetSyncQueue()" style="background:rgba(0,0,0,0.05); border:1px solid currentColor; border-radius:4px; padding:2px 8px; font-size:0.7rem; cursor:pointer">Clear Stuck Queue</button>
+            `;
             els.offlineNotice.classList.remove('hidden');
-            setTimeout(() => els.offlineNotice.classList.add('hidden'), 6000);
         }
     }
 }
+
 
 
 
