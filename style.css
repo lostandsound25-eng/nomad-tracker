@@ -320,12 +320,12 @@ body {
 
 /* Consolidated UI */
 .card-mini-title {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 800;
     text-transform: uppercase;
     color: var(--text-dim);
-    letter-spacing: 0.08em;
-    margin-bottom: 16px;
+    letter-spacing: 0.1em; /* Increased letter spacing for premium look */
+    margin-bottom: 20px;
     text-align: center;
 }
 
@@ -379,7 +379,7 @@ body {
 
 .progress-info-minimal {
     display: flex;
-    gap: 32px;
+    gap: 20px; /* Closer together for balance */
     flex: 1;
     justify-content: flex-end;
 }
@@ -387,7 +387,7 @@ body {
 .mini-stat-item {
     display: flex;
     flex-direction: column;
-    width: 110px; /* Fixed width prevents any label movement */
+    width: 90px; /* Targeted width for alignment */
     overflow: hidden;
 }
 
@@ -538,11 +538,11 @@ body {
 }
 
 .entry-card-title {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: 900;
     color: var(--text);
-    margin-bottom: 24px;
-    letter-spacing: -0.02em;
+    margin-bottom: 32px; /* More breathing room */
+    letter-spacing: -0.03em;
     text-align: center;
 }
 
@@ -997,22 +997,24 @@ body {
 }
 
 .quick-cur-btn {
-    background: var(--bg);
+    background: white;
     border: 1px solid var(--border);
-    padding: 8px 0;
-    border-radius: 10px;
-    font-size: 0.75rem;
+    padding: 10px 0;
+    border-radius: 14px;
+    font-size: 0.8rem;
     font-weight: 800;
     color: var(--text);
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
 .quick-cur-btn:hover {
-    background: var(--primary);
-    color: white;
+    background: #f0fdf4;
+    color: var(--primary);
     border-color: var(--primary);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.06);
 }
 
 .spending-currency-list-container {

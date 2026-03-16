@@ -95,9 +95,14 @@ const ALL_CURRENCIES = {
     KRW: { name: 'South Korean Won', symbol: '₩', keywords: 'korea seoul' },
     INR: { name: 'Indian Rupee', symbol: '₹', keywords: 'india delhi mumbai' },
     NZD: { name: 'New Zealand Dollar', symbol: '$', keywords: 'new zealand kiwi' },
-    CHF: { name: 'Swiss Franc', symbol: 'CHf', keywords: 'switzerland swiss' },
+    CHF: { name: 'Swiss Franc', symbol: 'CHF', keywords: 'switzerland swiss' },
     BRL: { name: 'Brazilian Real', symbol: 'R$', keywords: 'brazil rio' },
-    TRY: { name: 'Turkish Lira', symbol: '₺', keywords: 'turkey istanbul' }
+    TRY: { name: 'Turkish Lira', symbol: '₺', keywords: 'turkey istanbul' },
+    COP: { name: 'Colombian Peso', symbol: '$', keywords: 'colombia bogota medellin' },
+    CNY: { name: 'Chinese Yuan', symbol: '¥', keywords: 'china beijing shanghai' },
+    BZD: { name: 'Belize Dollar', symbol: 'BZ$', keywords: 'belize' },
+    PEN: { name: 'Peruvian Sol', symbol: 'S/', keywords: 'peru lima' },
+    ARS: { name: 'Argentine Peso', symbol: '$', keywords: 'argentina' }
 };
 
 // UI Elements
@@ -1108,9 +1113,13 @@ function updateDisplayDate(val) {
     if (state.rangeStart && state.rangeEnd) {
         if (els.dateLabelText) els.dateLabelText.innerText = "Range";
         if (els.displayDateText) {
-            els.displayDateText.innerText = `${formatDateShort(state.rangeStart)} - ${formatDateShort(state.rangeEnd)}`;
-            els.displayDateText.style.fontSize = '0.75rem'; // Smaller font for range
-            els.displayDateText.style.lineHeight = '1.1'; // Adjust line height for stacking
+            // Stack dates vertically for range to keep calendar icon fixed
+            els.displayDateText.innerHTML = `
+                <div style="font-size: 0.8rem; line-height: 1.1;">
+                ${formatDateShort(state.rangeStart)}<br>
+                ${formatDateShort(state.rangeEnd)}
+                </div>
+            `;
         }
     } else {
         if (isToday) {
@@ -1119,14 +1128,14 @@ function updateDisplayDate(val) {
                 const d = new Date(val + 'T12:00:00');
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 els.displayDateText.innerText = `${months[d.getMonth()]} ${d.getDate()}`;
-                els.displayDateText.style.fontSize = '0.9rem'; // Default font size
+                els.displayDateText.style.fontSize = '0.95rem';
                 els.displayDateText.style.lineHeight = '1';
             }
         } else {
             if (els.dateLabelText) els.dateLabelText.innerText = "Date";
             if (els.displayDateText) {
                 els.displayDateText.innerText = formatDateShort(val);
-                els.displayDateText.style.fontSize = '0.9rem'; // Default font size
+                els.displayDateText.style.fontSize = '0.95rem';
                 els.displayDateText.style.lineHeight = '1';
             }
         }
@@ -1653,11 +1662,8 @@ function updateDailyProgress() {
 
     if (els.todaySpent) {
         els.todaySpent.innerText = `${sym}${formatCompact(spentToday)}`;
-        // Aggressive auto-scale for large local amounts (like IDR/VND)
-        if (spentToday > 9999999) els.todaySpent.style.fontSize = '0.7rem';
-        else if (spentToday > 999999) els.todaySpent.style.fontSize = '0.8rem';
-        else if (spentToday > 99999) els.todaySpent.style.fontSize = '0.9rem';
-        else els.todaySpent.style.fontSize = '1.15rem';
+        // No font scaling, keep it pristine
+        els.todaySpent.style.fontSize = '1.15rem';
     }
 
     if (els.todayRemaining) {
@@ -1667,7 +1673,7 @@ function updateDailyProgress() {
             diffDisplay = diffHome / state.fxRateToHome;
         }
         els.todayRemaining.innerText = `${sym}${formatCompact(diffDisplay)}`;
-        els.todayRemaining.style.fontSize = (diffDisplay > 99999) ? '0.9rem' : '1.15rem';
+        els.todayRemaining.style.fontSize = '1.15rem';
 
         if (els.budgetStatusLabel) {
             els.budgetStatusLabel.innerText = isOver ? "Over Budget" : "Remaining";
@@ -1969,22 +1975,31 @@ function renderSpendingCurrencyModal(filterText = '') {
     
     const query = filterText.toLowerCase().trim();
 
+    // Kill full menu unless searching for a pristine look
+    if (!query) {
+        list.style.display = 'none';
+        return;
+    }
+    list.style.display = 'block';
+
     Object.entries(ALL_CURRENCIES).forEach(([code, data]) => {
         const matchesCode = code.toLowerCase().includes(query);
         const matchesName = data.name.toLowerCase().includes(query);
         const matchesKeywords = data.keywords && data.keywords.toLowerCase().includes(query);
 
-        if (!query || matchesCode || matchesName || matchesKeywords) {
+        if (matchesCode || matchesName || matchesKeywords) {
             const item = document.createElement('div');
             item.className = 'audit-item';
             item.style.cursor = 'pointer';
             item.innerHTML = `
                 <div class="audit-item-info">
-                    <strong>${code}</strong>
+                    <strong>${code} <span style="color: var(--primary); margin-left: 4px;">(${data.symbol})</span></strong>
                     <span class="tiny-label">${data.name}</span>
                 </div>
                 <div class="audit-item-meta">
-                    <strong>${data.symbol}</strong>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
                 </div>
             `;
             item.onclick = () => selectSpendingCurrency(code);
@@ -1993,6 +2008,6 @@ function renderSpendingCurrencyModal(filterText = '') {
     });
 
     if (list.children.length === 0) {
-        list.innerHTML = '<div class="text-center" style="padding: 2rem; color: var(--text-dim);">No currencies found</div>';
+        list.innerHTML = '<div class="text-center" style="padding: 2rem; color: var(--text-dim); font-size: 0.8rem;">No currencies found</div>';
     }
 }
