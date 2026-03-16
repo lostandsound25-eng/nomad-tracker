@@ -18,7 +18,9 @@ const state = {
     rangeEnd: null,
     selectedDate: getLocalYYYYMMDD(),
     modalCalMonth: new Date().getMonth(),
-    modalCalYear: new Date().getFullYear()
+    modalCalYear: new Date().getFullYear(),
+    offlineQueue: JSON.parse(localStorage.getItem('nomad_offline_queue') || '[]'),
+    fxRates: JSON.parse(localStorage.getItem('nomad_fx_cache') || '{}')
 };
 
 const EXAMPLE_TRIP = {
@@ -139,8 +141,17 @@ function init() {
         displayDateText: document.getElementById('display-date-text'),
         dateLabelText: document.getElementById('date-label-text'),
         splitIndicator: document.getElementById('split-indicator'),
-        splitText: document.getElementById('split-text')
+        splitText: document.getElementById('split-text'),
+
+        // Offline UI
+        offlineBadge: document.getElementById('offline-status-badge'),
+        sysStatus: document.getElementById('offline-status-text')
     };
+
+    // Network Event Listeners
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    updateNetworkStatus(); // Initial check
 
 
 
@@ -988,24 +999,35 @@ async function updateFxRate() {
         const response = await fetch(`https://open.er-api.com/v6/latest/${state.homeCurrency}`);
         const data = await response.json();
 
-        // We want the rate relative to the Home currency
-        const rateToHome = 1 / data.rates[state.spendingCurrency];
-        state.fxRateToHome = rateToHome;
+        if (data && data.rates) {
+            state.fxRates = data.rates;
+            localStorage.setItem('nomad_fx_cache', JSON.stringify(data.rates));
+            
+            const rateToHome = 1 / data.rates[state.spendingCurrency];
+            state.fxRateToHome = rateToHome;
 
-        // Better display logic: always show 1 of the larger currency = X of smaller currency
-        if (rateToHome < 1) {
-            const bigRate = 1 / rateToHome;
-            els.rateBanner.innerText = `1 ${state.homeCurrency} ≈ ${bigRate.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${state.spendingCurrency}`;
-        } else {
-            els.rateBanner.innerText = `1 ${state.spendingCurrency} ≈ ${rateToHome.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${state.homeCurrency}`;
+            if (rateToHome < 1) {
+                const bigRate = 1 / rateToHome;
+                els.rateBanner.innerText = `1 ${state.homeCurrency} ≈ ${bigRate.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${state.spendingCurrency}`;
+            } else {
+                els.rateBanner.innerText = `1 ${state.spendingCurrency} ≈ ${rateToHome.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${state.homeCurrency}`;
+            }
         }
 
         calculateHomeValue();
         updateDailyProgress();
     } catch (err) {
         console.error('FX Fetch failed', err);
-        // Fallback logic could go here, but for now we show error
-        els.rateBanner.innerText = `Rates unavailable (Offline)`;
+        
+        // Try to use cached rate
+        if (state.fxRates && state.fxRates[state.spendingCurrency]) {
+            const rateToHome = 1 / state.fxRates[state.spendingCurrency];
+            state.fxRateToHome = rateToHome;
+            els.rateBanner.innerText = `Using cached rates (Offline)`;
+        } else {
+            els.rateBanner.innerText = `Rates unavailable (Offline)`;
+        }
+        
         calculateHomeValue();
         updateDailyProgress();
     }
@@ -1117,10 +1139,27 @@ async function saveExpense() {
             });
         }
 
-        const { error } = await sb.from('expenses').insert(newExpenses);
-        if (error) throw error;
-
-        console.log("Successfully saved to Supabase.");
+        if (!navigator.onLine || (state.currentTrip && state.currentTrip.is_example)) {
+            // Offline or Example Trip - handle locally
+            if (state.currentTrip && !state.currentTrip.is_example) {
+                state.offlineQueue.push(...newExpenses);
+                localStorage.setItem('nomad_offline_queue', JSON.stringify(state.offlineQueue));
+                console.log("Saved to offline queue");
+            }
+        } else {
+            // Online - push to Supabase as usual
+            const { error } = await sb.from('expenses').insert(newExpenses);
+            if (error) {
+                // If it's a network error specifically, queue it
+                if (error.message === 'Failed to fetch' || error.status === 0) {
+                    state.offlineQueue.push(...newExpenses);
+                    localStorage.setItem('nomad_offline_queue', JSON.stringify(state.offlineQueue));
+                } else {
+                    throw error;
+                }
+            }
+            console.log("Successfully saved to Supabase.");
+        }
 
         // 1. Immediate Visual Feedback
         const originalText = btn.innerText;
@@ -1140,6 +1179,20 @@ async function saveExpense() {
         updateDailyProgress();
         updateSplitIndicator();
 
+        // 3. Update history immediately for UI lag-free feel
+        const uiExtras = newExpenses.map(e => ({
+            id: 'temp-' + Date.now() + Math.random(),
+            date: e.spent_at,
+            category: e.category,
+            localAmount: e.local_amount,
+            currency: e.local_currency,
+            usdAmount: e.home_amount,
+            symbol: CURRENCY_SYMBOLS[e.local_currency] || e.local_currency,
+            note: e.note
+        }));
+        state.history = [...uiExtras, ...state.history];
+        renderHistory();
+
         const hint = document.getElementById('range-selection-hint');
         if (hint) hint.innerText = "Tap dates to select range";
 
@@ -1154,6 +1207,51 @@ async function saveExpense() {
     } catch (err) {
         console.error("Save error:", err);
         alert("Failed to save: " + (err.message || "Unknown error"));
+    }
+}
+
+// --- Network & Offline Sync ---
+
+function updateNetworkStatus() {
+    if (navigator.onLine) {
+        els.offlineBadge.classList.add('hidden');
+        syncOfflineData();
+    } else {
+        els.offlineBadge.classList.remove('hidden');
+        els.offlineBadge.classList.remove('syncing');
+        els.sysStatus.innerText = "Offline";
+    }
+}
+
+async function syncOfflineData() {
+    if (state.offlineQueue.length === 0 || !navigator.onLine) return;
+
+    console.log("Syncing offline data...", state.offlineQueue.length);
+    els.offlineBadge.classList.remove('hidden');
+    els.offlineBadge.classList.add('syncing');
+    els.sysStatus.innerText = "Syncing...";
+
+    const queue = [...state.offlineQueue];
+    try {
+        const { error } = await sb.from('expenses').insert(queue);
+        if (error) throw error;
+
+        // Success - clear queue
+        state.offlineQueue = [];
+        localStorage.setItem('nomad_offline_queue', '[]');
+        console.log("Sync complete!");
+        
+        els.sysStatus.innerText = "Synced!";
+        setTimeout(() => {
+            els.offlineBadge.classList.add('hidden');
+            els.offlineBadge.classList.remove('syncing');
+        }, 2000);
+
+        fetchTripExpenses(); // Refresh real data
+    } catch (err) {
+        console.error("Sync failed:", err);
+        els.sysStatus.innerText = "Sync Error";
+        // Keep in queue for next attempt
     }
 }
 
