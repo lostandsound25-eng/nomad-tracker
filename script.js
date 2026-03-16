@@ -1332,6 +1332,7 @@ async function saveExpense() {
         console.error("Save error:", err);
         alert("Failed to save: " + (err.message || "Unknown error"));
     }
+}
 
 // --- Network & Offline Sync ---
 
@@ -2098,5 +2099,4 @@ function injectLocalCurrencyButton(code) {
 
     // Insert at the front
     grid.insertBefore(btn, grid.firstChild);
-}
 }
