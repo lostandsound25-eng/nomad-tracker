@@ -159,7 +159,12 @@ function init() {
         toggleSpendingCode: document.getElementById('toggle-spending-code'),
         budgetStatusLabel: document.getElementById('budget-status-label'),
         dailyProgressCard: document.querySelector('.daily-progress-card'),
-        progressPercentLabel: document.getElementById('progress-percent-label')
+        progressPercentLabel: document.getElementById('progress-percent-label'),
+
+        // Custom Spending Currency Modal
+        spendingCurrencyModal: document.getElementById('spending-currency-modal'),
+        spendingCurrencyList: document.getElementById('spending-currency-list'),
+        displaySpendingCurrency: document.getElementById('display-spending-currency')
     };
 
     // Network Event Listeners
@@ -181,6 +186,15 @@ function init() {
     document.getElementById('confirm-date').addEventListener('click', () => {
         updateDisplayDate(state.selectedDate);
         els.dateModal.classList.remove('active');
+    });
+
+    document.getElementById('open-spending-currency-modal').addEventListener('click', () => {
+        renderSpendingCurrencyModal();
+        els.spendingCurrencyModal.classList.add('active');
+    });
+
+    document.getElementById('close-spending-currency-modal').addEventListener('click', () => {
+        els.spendingCurrencyModal.classList.remove('active');
     });
 
     document.getElementById('modal-prev-month').onclick = () => {
@@ -1075,14 +1089,15 @@ function updateDisplayDate(val) {
             }
         } else {
             if (els.dateLabelText) els.dateLabelText.innerText = "Date";
-            if (els.displayDateText) els.displayDateText.innerText = formatDateShort(val);
+            if (els.displayDateText) {
+                els.displayDateText.innerText = formatDateShort(val);
+            }
         }
     }
-
+    
+    // Aesthetic fix: resize font for range if too long
     if (els.displayDateText) {
-        // Ensure color/style consistency
-        els.displayDateText.style.color = 'var(--text)';
-        els.displayDateText.style.fontSize = (state.rangeStart && state.rangeEnd) ? '0.8rem' : '0.95rem';
+        els.displayDateText.style.fontSize = (state.rangeStart && state.rangeEnd) ? '0.75rem' : '0.9rem';
     }
     updateDailyProgress();
     updateSplitIndicator();
@@ -1875,3 +1890,52 @@ function generateExampleHistory() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+function renderSpendingCurrencyModal() {
+    const list = els.spendingCurrencyList;
+    if (!list) return;
+    list.innerHTML = '';
+    
+    const currencies = [
+        { code: 'USD', name: 'USD ($)', symbol: '$' },
+        { code: 'EUR', name: 'EUR (€)', symbol: '€' },
+        { code: 'GBP', name: 'GBP (£)', symbol: '£' },
+        { code: 'IDR', name: 'IDR (Rp)', symbol: 'Rp' },
+        { code: 'THB', name: 'THB (฿)', symbol: '฿' },
+        { code: 'VND', name: 'VND (₫)', symbol: '₫' },
+        { code: 'LAK', name: 'LAK (₭)', symbol: '₭' },
+        { code: 'KHR', name: 'KHR (៛)', symbol: '៛' },
+        { code: 'MXN', name: 'MXN ($)', symbol: '$' },
+        { code: 'JPY', name: 'JPY (¥)', symbol: '¥' }
+    ];
+
+    currencies.forEach(cur => {
+        const item = document.createElement('div');
+        item.className = 'audit-item';
+        item.style.cursor = 'pointer';
+        item.innerHTML = `
+            <div class="audit-item-info">
+                <strong>${cur.code}</strong>
+                <span class="tiny-label">${cur.name}</span>
+            </div>
+            <div class="audit-item-meta">
+                <strong>${cur.symbol}</strong>
+            </div>
+        `;
+        item.onclick = () => {
+            state.spendingCurrency = cur.code;
+            localStorage.setItem('nomad_last_spending_currency', state.spendingCurrency);
+            
+            // Sync hidden select if needed for other logic
+            els.spendingSelect.value = cur.code;
+            els.displaySpendingCurrency.innerText = `${cur.code} (${cur.symbol})`;
+            els.symbol.innerText = cur.symbol;
+            
+            updateFxRate();
+            calculateHomeValue();
+            
+            els.spendingCurrencyModal.classList.remove('active');
+        };
+        list.appendChild(item);
+    });
+}
