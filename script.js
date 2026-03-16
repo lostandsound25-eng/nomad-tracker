@@ -179,8 +179,10 @@ function init() {
         // Custom Spending Currency Modal
         spendingCurrencyModal: document.getElementById('spending-currency-modal'),
         spendingCurrencyList: document.getElementById('spending-currency-list'),
-        displaySpendingCurrency: document.getElementById('display-spending-currency')
+        displaySpendingCurrency: document.getElementById('display-spending-currency'),
+        offlineNotice: document.getElementById('offline-notification')
     };
+
 
     // Network Event Listeners
     window.addEventListener('online', updateNetworkStatus);
@@ -1250,6 +1252,13 @@ async function saveExpense() {
                 state.offlineQueue.push(...newExpenses);
                 localStorage.setItem('nomad_offline_queue', JSON.stringify(state.offlineQueue));
                 console.log("Saved to offline queue");
+
+                // Stylish Offline Notification
+                if (els.offlineNotice) {
+                    els.offlineNotice.innerText = "Offline expense added. We'll sync with the cloud once your connection is back!";
+                    els.offlineNotice.classList.remove('hidden');
+                    setTimeout(() => els.offlineNotice.classList.add('hidden'), 5000);
+                }
             }
         } else {
             // Online - push to Supabase as usual
@@ -1259,12 +1268,22 @@ async function saveExpense() {
                 if (error.message === 'Failed to fetch' || error.status === 0) {
                     state.offlineQueue.push(...newExpenses);
                     localStorage.setItem('nomad_offline_queue', JSON.stringify(state.offlineQueue));
+                    
+                    if (els.offlineNotice) {
+                        els.offlineNotice.innerText = "Connection lost. Expense saved locally and will sync later!";
+                        els.offlineNotice.classList.remove('hidden');
+                        setTimeout(() => els.offlineNotice.classList.add('hidden'), 5000);
+                    }
                 } else {
                     throw error;
                 }
             }
             console.log("Successfully saved to Supabase.");
+            
+            // Show a quick "Synced" pill if we were just syncing
+            showSyncedStatus();
         }
+
 
         // Optimistic UI update — happens immediately so dashboard updates at once
         const originalText = btn.innerText;
@@ -1327,21 +1346,35 @@ async function saveExpense() {
 
 function updateNetworkStatus() {
     if (navigator.onLine) {
-        els.offlineBadge.classList.add('hidden');
-        syncOfflineData();
+        if (state.offlineQueue.length > 0) {
+            syncOfflineData();
+        } else {
+            // Always show synced state for a moment when coming online
+            showSyncedStatus();
+        }
     } else {
-        els.offlineBadge.classList.remove('hidden');
-        els.offlineBadge.classList.remove('syncing');
+        els.offlineBadge.className = 'offline-badge offline';
         els.sysStatus.innerText = "Offline";
     }
+}
+
+function showSyncedStatus() {
+    els.offlineBadge.className = 'offline-badge synced';
+    els.sysStatus.innerText = "Cloud Synced";
+    // Keep it visible on Expense page for a bit, then hide on desktop if needed
+    // But user wants it visible to know it's "taken care of"
+    setTimeout(() => {
+        if (navigator.onLine && state.offlineQueue.length === 0) {
+            els.offlineBadge.classList.add('hidden');
+        }
+    }, 4000);
 }
 
 async function syncOfflineData() {
     if (state.offlineQueue.length === 0 || !navigator.onLine) return;
 
     console.log("Syncing offline data...", state.offlineQueue.length);
-    els.offlineBadge.classList.remove('hidden');
-    els.offlineBadge.classList.add('syncing');
+    els.offlineBadge.className = 'offline-badge syncing';
     els.sysStatus.innerText = "Syncing...";
 
     const queue = [...state.offlineQueue];
@@ -1354,19 +1387,16 @@ async function syncOfflineData() {
         localStorage.setItem('nomad_offline_queue', '[]');
         console.log("Sync complete!");
 
-        els.sysStatus.innerText = "Synced!";
-        setTimeout(() => {
-            els.offlineBadge.classList.add('hidden');
-            els.offlineBadge.classList.remove('syncing');
-        }, 2000);
-
+        showSyncedStatus();
         fetchTripExpenses(); // Refresh real data
     } catch (err) {
         console.error("Sync failed:", err);
-        els.sysStatus.innerText = "Sync Error";
+        els.offlineBadge.className = 'offline-badge error';
+        els.sysStatus.innerText = "Sync Retry...";
         // Keep in queue for next attempt
     }
 }
+
 
 // --- Audit & Modal ---
 

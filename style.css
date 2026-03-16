@@ -137,7 +137,7 @@ body {
     align-items: center;
 }
 
-/* Offline Badge - Floating absolute so it doesn't push the trip pill */
+/* Sync Badge - Floating on the right */
 .offline-badge {
     position: absolute;
     top: 50%;
@@ -146,25 +146,106 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #fee2e2;
-    color: #ef4444;
-    padding: 3px 8px;
+    padding: 6px 12px;
     border-radius: 99px;
     font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 5;
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
 }
 
+/* State: Offline */
+.offline-badge.offline {
+    background: #fee2e2;
+    color: #ef4444;
+    border-color: #fecaca;
+}
+
+/* State: Syncing */
 .offline-badge.syncing {
+    background: #e0f2fe;
+    color: #0ea5e9;
+    border-color: #bae6fd;
+}
+
+/* State: Synced (Success) */
+.offline-badge.synced {
     background: #dcfce7;
     color: #10b981;
+    border-color: #bbf7d0;
+}
+
+/* State: Sync Error */
+.offline-badge.error {
+    background: #fff7ed;
+    color: #f97316;
+    border-color: #ffedd5;
 }
 
 .offline-badge.hidden {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.9);
+    pointer-events: none;
+}
+
+.status-icon {
+    width: 8px;
+    height: 8px;
+    background: currentColor;
+    border-radius: 50%;
+    position: relative;
+}
+
+.offline-badge.syncing .status-icon {
+    animation: bounce 1s infinite alternate;
+}
+
+.offline-badge.synced .status-icon {
+    background: none;
+    width: 10px;
+    height: 10px;
+}
+
+.offline-badge.synced .status-icon::after {
+    content: '✓';
+    position: absolute;
+    top: -4px;
+    left: 0;
+    font-size: 10px;
+}
+
+@keyframes bounce {
+    from { transform: translateY(-3px); }
+    to { transform: translateY(3px); }
+}
+
+/* Offline Notice Toast */
+.offline-notice {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: var(--primary-dim);
+    color: var(--primary-hover);
+    border-radius: 12px;
+    font-size: 0.8rem;
+    text-align: center;
+    font-weight: 500;
+    border: 1px dashed var(--primary);
+    animation: fadeInSlide 0.4s ease-out;
+}
+
+.offline-notice.hidden {
     display: none;
 }
+
+@keyframes fadeInSlide {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
 
 .pulse-dot {
     width: 6px;
