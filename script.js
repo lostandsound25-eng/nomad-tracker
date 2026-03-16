@@ -1287,9 +1287,13 @@ async function saveExpense() {
         fetchTripExpenses();
 
         // ── SIMPLE SAVE FEEDBACK ──────────────────────────────
+        const entryCard = document.querySelector('.entry-card');
+        const logTabBtn = document.querySelector('.tab-btn[onclick*="history"]');
+
         // 1. Quick Success Feedback on Button & Tab
         btn.innerText = '✓  Logged!';
         btn.classList.add('success-mode');
+
         
         if (logTabBtn) {
             logTabBtn.classList.add('tab-pulse-arrive');
