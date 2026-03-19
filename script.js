@@ -20,7 +20,18 @@ const state = {
     modalCalMonth: new Date().getMonth(),
     modalCalYear: new Date().getFullYear(),
     offlineQueue: JSON.parse(localStorage.getItem('nomad_offline_queue') || '[]'),
-    fxRates: JSON.parse(localStorage.getItem('nomad_fx_cache') || '{}')
+    fxRates: JSON.parse(localStorage.getItem('nomad_fx_cache') || '{}'),
+
+    // Calendar Tab State
+    calEvents: JSON.parse(localStorage.getItem('nomad_cal_events') || '[]'),
+    // shape: { id, title, color, emoji, startDate:'YYYY-MM-DD', endDate:'YYYY-MM-DD', notes:{} }
+    committedExpenses: JSON.parse(localStorage.getItem('nomad_committed') || '[]'),
+    // shape: { id, title, category, amount, currency, startDate, endDate, promoted:false }
+    dayNotes: JSON.parse(localStorage.getItem('nomad_day_notes') || '{}'),
+    // shape: { 'YYYY-MM-DD': string }
+    calView: 'month',      // 'month' | 'week' | 'event'
+    calWeekStart: null,    // 'YYYY-MM-DD' of the Sunday that starts the viewed week
+    activeCalEvent: null   // the calEvents item currently zoomed into
 };
 
 const EXAMPLE_TRIP = {
@@ -35,7 +46,14 @@ const EXAMPLE_TRIP = {
 // Supabase Configuration
 const SUPABASE_URL = 'https://demldrpockwyrjalejbx.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_urMkuF8kM4i-eaMc9VORuA_QyiVj6vX';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage
+    }
+});
 
 // Sample data to make the app look alive if empty
 const SAMPLE_DATA = [
@@ -190,10 +208,10 @@ function init() {
     window.addEventListener('online', updateNetworkStatus);
     window.addEventListener('offline', updateNetworkStatus);
     updateNetworkStatus(); // Initial check
-    
+
     if (els.offlineBadge) {
         els.offlineBadge.addEventListener('click', () => {
-             if (navigator.onLine) syncOfflineData();
+            if (navigator.onLine) syncOfflineData();
         });
     }
 
@@ -555,16 +573,54 @@ function init() {
     document.getElementById('btn-invite-share')?.addEventListener('click', handleInviteShare);
     document.getElementById('btn-invite-email')?.addEventListener('click', handleInviteEmail);
 
-    // Initial Auth Check & Persistence
-    // onAuthStateChange handles the initial session check automatically
+    // --- REINFORCED AUTH INITIALIZATION ---
+    let authInitialized = false;
+
+    const processAuth = (user, source) => {
+        console.log(`Auth processing from ${source}:`, user ? user.email : "Null");
+        
+        // Safety: If we already have a user and something (like a late INITIAL_SESSION) 
+        // tries to set it to null, we ignore it unless it's a SIGNED_OUT event.
+        if (authInitialized && user === null && source === 'INITIAL_SESSION' && state.user) {
+            console.log("Auth: Ignoring late null INITIAL_SESSION as we already have a user.");
+            return;
+        }
+
+        // Prevent redundant updates for the same user
+        if (authInitialized && user && state.user?.id === user.id) return;
+
+        authInitialized = true;
+        updateAuthState(user);
+    };
+
+    const initAuth = async () => {
+        try {
+            const { data: { user } } = await sb.auth.getUser();
+            if (user) {
+                processAuth(user, 'initAuth_getUser');
+            } else {
+                const { data: { session } } = await sb.auth.getSession();
+                processAuth(session?.user || null, 'initAuth_getSession');
+            }
+        } catch (err) {
+            console.error("Auth initialization error:", err);
+            processAuth(null, 'initAuth_Error');
+        }
+    };
+
     sb.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            updateAuthState(session?.user);
+            processAuth(session?.user || null, event);
         } else if (event === 'SIGNED_OUT') {
-            updateAuthState(null);
+            processAuth(null, 'SIGNED_OUT');
+        } else if (event === 'INITIAL_SESSION') {
+            processAuth(session?.user || null, 'INITIAL_SESSION');
         }
     });
-    // checkUser() is no longer needed as onAuthStateChange handles the initial session check automatically
+
+    initAuth();
+    
+    setupCalendarListeners();
 }
 
 function renderTripMenu() {
@@ -612,10 +668,12 @@ async function setActiveTrip(trip) {
         renderHistory();
         updateDashboard();
         updateDailyProgress();
+        localStorage.removeItem('nomad_current_trip_id');
         return;
     }
 
     state.currentTrip = trip;
+    localStorage.setItem('nomad_current_trip_id', trip.id);
     state.dailyBudget = trip.daily_budget;
     state.homeCurrency = trip.home_currency;
 
@@ -646,37 +704,7 @@ async function setActiveTrip(trip) {
     fetchTripExpenses();
 }
 
-async function handleInviteShare() {
-    const code = state.currentTrip?.join_code;
-    if (!code) return;
 
-    const shareText = `Join my trip "${state.currentTrip.name}" on Nomad Tracker! Use code: ${code}`;
-
-    if (navigator.share) {
-        try {
-            await navigator.share({
-                title: 'Join Nomad Trip',
-                text: shareText,
-                url: window.location.href
-            });
-        } catch (err) {
-            console.log("Share failed or cancelled", err);
-        }
-    } else {
-        copyToClipboard(code);
-        alert("Invite code copied to clipboard!");
-    }
-}
-
-function handleInviteEmail() {
-    const code = state.currentTrip?.join_code;
-    if (!code) return;
-
-    const subject = encodeURIComponent(`Join my trip: ${state.currentTrip.name}`);
-    const body = encodeURIComponent(`Hey! Join my trip on Nomad Tracker so we can track expenses together.\n\nTrip Name: ${state.currentTrip.name}\nInvite Code: ${code}\n\nTrack here: ${window.location.href}`);
-
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
-}
 
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
@@ -716,6 +744,15 @@ async function fetchUserTrips() {
     renderTripMenu();
 
     // 4. Handle initial selection
+    const savedTripId = localStorage.getItem('nomad_current_trip_id');
+    if (savedTripId) {
+        const found = allTrips.find(t => t.id === savedTripId);
+        if (found) {
+            setActiveTrip(found);
+            return;
+        }
+    }
+
     if (realTrips.length > 0) {
         // If we have real trips, select the first real one
         if (!state.currentTrip || !allTrips.find(t => t.id === state.currentTrip.id)) {
@@ -724,8 +761,8 @@ async function fetchUserTrips() {
             els.tripSelector.value = state.currentTrip.id;
         }
     } else {
-        // New user or no real trips - don't auto-select example, just show prompt
-        setActiveTrip(null);
+        // New user or no real trips - auto-select example to show initial state
+        setActiveTrip(EXAMPLE_TRIP);
     }
 }
 
@@ -774,16 +811,23 @@ async function checkUser() {
 
 function updateAuthState(user) {
     state.user = user;
+    
+    // Safety check: ensure DOM elements are ready
+    if (!els || !els.authOverlay || !els.mainApp) {
+        console.warn("updateAuthState called before UI elements were ready.");
+        return;
+    }
+
     if (user) {
         els.authOverlay.classList.add('hidden');
         els.mainApp.classList.remove('hidden');
-        els.userEmailDisplay.innerText = user.email;
+        if (els.userEmailDisplay) els.userEmailDisplay.innerText = user.email;
         fetchUserTrips();
-        updateNetworkStatus(); // NEW: Trigger sync check now that we have a user
+        updateNetworkStatus();
     } else {
         els.authOverlay.classList.remove('hidden');
         els.mainApp.classList.add('hidden');
-        els.userEmailDisplay.innerText = "Not logged in";
+        if (els.userEmailDisplay) els.userEmailDisplay.innerText = "Not logged in";
         state.history = [];
         state.currentTrip = null;
     }
@@ -1277,7 +1321,7 @@ async function saveExpense() {
                 if (error.message === 'Failed to fetch' || error.status === 0) {
                     state.offlineQueue.push(...newExpenses);
                     localStorage.setItem('nomad_offline_queue', JSON.stringify(state.offlineQueue));
-                    
+
                     if (els.offlineNotice) {
                         els.offlineNotice.innerText = "Connection lost. Expense saved locally and will sync later!";
                         els.offlineNotice.classList.remove('hidden');
@@ -1288,7 +1332,7 @@ async function saveExpense() {
                 }
             }
             console.log("Successfully saved to Supabase.");
-            
+
             // Show a quick "Synced" pill if we were just syncing
             showSyncedStatus();
         }
@@ -1352,7 +1396,7 @@ async function saveExpense() {
 
 // --- Network & Offline Sync ---
 
-window.resetSyncQueue = function() {
+window.resetSyncQueue = function () {
     if (confirm("Clear all unsynced expenses? This cannot be undone and these items will not reach the cloud.")) {
         state.offlineQueue = [];
         localStorage.setItem('nomad_offline_queue', '[]');
@@ -1387,7 +1431,7 @@ function showSyncedStatus() {
 
 async function syncOfflineData() {
     if (state.offlineQueue.length === 0 || !navigator.onLine) return;
-    
+
     // Safety check: Don't try to sync if not logged in (RLS will block it)
     // If state.user is null, it means auth hasn't initialized yet.
     // We just return silently; updateAuthState will trigger this again once user is confirmed.
@@ -1436,7 +1480,7 @@ async function syncOfflineData() {
             let msg = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
             // Truncate very long error strings
             if (msg.length > 100) msg = msg.substring(0, 97) + "...";
-            
+
             els.offlineNotice.innerHTML = `
                 <div style="margin-bottom:4px">Sync failed: ${msg}</div>
                 <button onclick="resetSyncQueue()" style="background:rgba(0,0,0,0.05); border:1px solid currentColor; border-radius:4px; padding:2px 8px; font-size:0.7rem; cursor:pointer">Clear Stuck Queue</button>
@@ -1487,103 +1531,11 @@ function openAuditModal() {
 
 function renderHistory() {
     renderCalendar();
+    renderConsole();
 }
 
-function renderCalendar() {
-    const body = document.getElementById('calendar-body');
-    const monthYearLabel = document.getElementById('calendar-month-year');
-    body.innerHTML = '';
+// (Old functions removed, replaced by new versions at end of file)
 
-    const firstDay = new Date(state.calYear, state.calMonth, 1).getDay();
-    const daysInMonth = new Date(state.calYear, state.calMonth + 1, 0).getDate();
-    const monthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date(state.calYear, state.calMonth));
-
-    monthYearLabel.innerText = `${monthName} ${state.calYear}`;
-
-    // Group history by date
-    const dayMap = {};
-    state.history.forEach(item => {
-        const d = new Date(item.date);
-        const key = getLocalYYYYMMDD(d);
-        if (!dayMap[key]) dayMap[key] = { total: 0, items: [] };
-        dayMap[key].total += item.usdAmount;
-        dayMap[key].items.push(item);
-    });
-
-    const todayLocal = getLocalYYYYMMDD();
-
-    // Fill Empty days before 1st
-    for (let i = 0; i < firstDay; i++) {
-        const div = document.createElement('div');
-        div.className = 'cal-day empty';
-        body.appendChild(div);
-    }
-
-    // Fill month days
-    for (let day = 1; day <= daysInMonth; day++) {
-        const dateObj = new Date(state.calYear, state.calMonth, day);
-        const key = getLocalYYYYMMDD(dateObj);
-        const dayData = dayMap[key];
-
-        const div = document.createElement('div');
-        div.className = 'cal-day';
-        if (key === todayLocal) div.classList.add('is-today');
-        if (key === state.selectedDate) div.classList.add('selected-day');
-
-        // Range highlighting
-        if (state.rangeStart && state.rangeEnd) {
-            if (key === state.rangeStart) div.classList.add('range-start');
-            else if (key === state.rangeEnd) div.classList.add('range-end');
-            else if (key > state.rangeStart && key < state.rangeEnd) div.classList.add('in-range');
-        } else if (state.rangeStart && key === state.rangeStart) {
-            div.classList.add('range-start');
-        }
-
-        div.innerHTML = `
-            <span class="day-num">${day}</span>
-            <div class="day-total ${!dayData ? 'zero' : ''}">
-                ${CURRENCY_SYMBOLS[state.homeCurrency]}${dayData ? dayData.total.toFixed(0) : '0'}
-            </div>
-        `;
-
-        div.onclick = () => handleCalendarDayClick(key, dateObj, dayData);
-        body.appendChild(div);
-    }
-}
-
-function handleCalendarDayClick(key, dateObj, dayData) {
-    // 1. Double click or sequential click logic for Range
-    if (!state.rangeStart || (state.rangeStart && state.rangeEnd)) {
-        // Start a new range
-        state.rangeStart = key;
-        state.rangeEnd = null;
-        document.getElementById('range-selection-hint').innerText = `Starting at ${key}...`;
-    } else if (state.rangeStart && !state.rangeEnd) {
-        if (key < state.rangeStart) {
-            // Reset and start new if clicked earlier
-            state.rangeStart = key;
-        } else if (key === state.rangeStart) {
-            // Unselect if clicking same day
-            state.rangeStart = null;
-            document.getElementById('range-selection-hint').innerText = "Tap dates to select range";
-        } else {
-            // Set end
-            state.rangeEnd = key;
-            const diff = Math.round((new Date(state.rangeEnd) - new Date(state.rangeStart)) / (1000 * 60 * 60 * 24)) + 1;
-            document.getElementById('range-selection-hint').innerText = `Range Selected: ${diff} Days`;
-        }
-    }
-
-    // 2. Select this date as the primary focus in Expense tab
-    const dateInput = document.getElementById('expense-date');
-    if (dateInput) {
-        dateInput.value = key;
-        dateInput.dispatchEvent(new Event('change'));
-    }
-
-    renderHistory();
-    showDayDetail(key, dateObj, dayData, null);
-}
 
 function showDayDetail(dateKey, dateObj, dayData, clickedDiv) {
     // Selection logic
@@ -1860,7 +1812,8 @@ function renderCategoryDonut(total) {
         }
     });
 
-    document.getElementById('donut-total-val').innerText = `${CURRENCY_SYMBOLS[state.homeCurrency]}${total.toFixed(0)}`;
+    const donutTotal = document.getElementById('donut-total-val');
+    if (donutTotal) donutTotal.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${total.toFixed(0)}`;
 }
 
 function renderCategoryBreakdown(total) {
@@ -2168,4 +2121,791 @@ function injectLocalCurrencyButton(code) {
 
     // Insert at the front
     grid.insertBefore(btn, grid.firstChild);
+}
+
+// --- REFINED CALENDAR & DRILLDOWN FUNCTIONS ---
+
+function updateMonthPills() {
+    const totalPill = document.getElementById('pill-total-val');
+    const avgPill = document.getElementById('pill-avg-val');
+    const topPill = document.getElementById('pill-top-val');
+
+    // Filter history for current calMonth/calYear
+    const monthExpenses = state.history.filter(item => {
+        const d = new Date(item.date);
+        return d.getMonth() === state.calMonth && d.getFullYear() === state.calYear;
+    });
+
+    const total = monthExpenses.reduce((sum, item) => sum + item.usdAmount, 0);
+    
+    // Calculate days passed in month (or total days in month if past)
+    const now = new Date();
+    let daysCount;
+    if (now.getMonth() === state.calMonth && now.getFullYear() === state.calYear) {
+        daysCount = now.getDate();
+    } else {
+        daysCount = new Date(state.calYear, state.calMonth + 1, 0).getDate();
+    }
+
+    const avg = total / (daysCount || 1);
+
+    // Top Category
+    const cats = monthExpenses.reduce((acc, item) => {
+        acc[item.category] = (acc[item.category] || 0) + item.usdAmount;
+        return acc;
+    }, {});
+    const topCat = Object.entries(cats).sort((a,b) => b[1]-a[1])[0];
+
+    if (totalPill) totalPill.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${total.toFixed(0)}`;
+    if (avgPill) avgPill.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${avg.toFixed(0)}`;
+    if (topPill) topPill.innerText = topCat ? (topCat[0].charAt(0).toUpperCase() + topCat[0].slice(1)) : '—';
+}
+
+// Using the logic below
+
+
+function paintEventBanners() {
+    // This overlays the banners on the current month grid
+    // For simplicity in this vanilla JS version, we find the day cells by date data attributes 
+    // or we recreate the logic. Let's add data-date to cal-day during render.
+}
+
+
+// --- REPLICATED CONCEPT A CALENDAR ---
+
+function updateMonthPills() {
+    const totalPill = document.getElementById('pill-total-val');
+    const avgPill = document.getElementById('pill-avg-val');
+    const topPill = document.getElementById('pill-top-val');
+
+    const monthExpenses = state.history.filter(item => {
+        const d = new Date(item.date);
+        return d.getMonth() === state.calMonth && d.getFullYear() === state.calYear;
+    });
+
+    const total = monthExpenses.reduce((sum, item) => sum + item.usdAmount, 0);
+    const now = new Date();
+    let daysCount;
+    if (now.getMonth() === state.calMonth && now.getFullYear() === state.calYear) {
+        daysCount = now.getDate();
+    } else {
+        daysCount = new Date(state.calYear, state.calMonth + 1, 0).getDate();
+    }
+    const avg = total / (daysCount || 1);
+
+    const cats = monthExpenses.reduce((acc, item) => {
+        acc[item.category] = (acc[item.category] || 0) + item.usdAmount;
+        return acc;
+    }, {});
+    const topCat = Object.entries(cats).sort((a,b) => b[1]-a[1])[0];
+
+    if (totalPill) totalPill.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${total.toFixed(0)}`;
+    if (avgPill) avgPill.innerText = `${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${avg.toFixed(0)}`;
+    if (topPill) topPill.innerText = topCat ? (topCat[0].charAt(0).toUpperCase() + topCat[0].slice(1)) : '—';
+}
+
+function renderCalendar() {
+    const body = document.getElementById('calendar-body');
+    const monthYearLabel = document.getElementById('calendar-month-year');
+    if (!body) return;
+    body.innerHTML = '';
+
+    const firstDay = new Date(state.calYear, state.calMonth, 1).getDay();
+    const daysInMonth = new Date(state.calYear, state.calMonth + 1, 0).getDate();
+    const monthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date(state.calYear, state.calMonth));
+    if (monthYearLabel) monthYearLabel.innerText = `${monthName} ${state.calYear}`;
+
+    updateMonthPills();
+
+    const dayMap = {};
+    state.history.forEach(item => {
+        const key = getLocalYYYYMMDD(new Date(item.date));
+        if (!dayMap[key]) dayMap[key] = { total: 0, items: [] };
+        dayMap[key].total += item.usdAmount;
+        dayMap[key].items.push(item);
+    });
+
+    const todayLocal = getLocalYYYYMMDD();
+
+    // Empty days
+    for (let i = 0; i < firstDay; i++) {
+        const div = document.createElement('div');
+        div.className = 'cal-day empty';
+        body.appendChild(div);
+    }
+
+    // Month days
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(state.calYear, state.calMonth, day);
+        const key = getLocalYYYYMMDD(dateObj);
+        const dayData = dayMap[key];
+
+        const div = document.createElement('div');
+        div.className = 'cal-day';
+        div.dataset.key = key; // For positioning range plus button
+        if (key === todayLocal) div.classList.add('is-today');
+        if (key === state.selectedDate) div.classList.add('selected-day');
+
+        // Range highlighting
+        if (state.rangeStart && state.rangeEnd) {
+            if (key === state.rangeStart) div.classList.add('range-start');
+            else if (key === state.rangeEnd) div.classList.add('range-end');
+            else if (key > state.rangeStart && key < state.rangeEnd) div.classList.add('in-range');
+        } else if (state.rangeStart && key === state.rangeStart) {
+            div.classList.add('range-start');
+        }
+
+        // --- NEW: CALENDAR EVENTS ---
+        let markerHtml = '';
+        state.calEvents.forEach(ev => {
+            if (key >= ev.startDate && key <= ev.endDate) {
+                markerHtml += `<div class="marker event" style="background: ${ev.color};" title="${ev.title}">${ev.title}</div>`;
+            }
+        });
+
+        div.innerHTML = `
+            <span class="day-num">${day}</span>
+            <div class="cal-markers">${markerHtml}</div>
+            <div class="day-total ${!dayData ? 'zero' : ''}">
+                ${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${dayData ? dayData.total.toFixed(0) : '0'}
+            </div>
+        `;
+
+        // Standard selection logic
+        div.onclick = () => handleCalendarDayClick(key, dateObj, dayData, div);
+        body.appendChild(div);
+    }
+    
+    // Position range plus button after render if range exists
+    updateRangePlusPosition();
+}
+
+function updateRangePlusPosition() {
+    const btn = document.getElementById('range-plus-btn');
+    if (!btn) return;
+    
+    if (!state.rangeStart) {
+        btn.classList.add('hidden');
+        return;
+    }
+
+    const startEl = document.querySelector(`.cal-day[data-key="${state.rangeStart}"]`);
+    const endKey = state.rangeEnd || state.rangeStart;
+    const endEl = document.querySelector(`.cal-day[data-key="${endKey}"]`);
+    
+    if (!startEl || !endEl) {
+        btn.classList.add('hidden');
+        return;
+    }
+
+    const startRect = startEl.getBoundingClientRect();
+    const endRect = endEl.getBoundingClientRect();
+    const containerRect = document.getElementById('calendar-body').getBoundingClientRect();
+
+    // Center point between start and end cells
+    const centerX = (startRect.left + endRect.right) / 2 - containerRect.left;
+    const centerY = (startRect.top + endRect.bottom) / 2 - containerRect.top;
+
+    btn.style.left = `${centerX}px`;
+    btn.style.top = `${centerY}px`;
+    btn.classList.remove('hidden');
+    
+    btn.onclick = (e) => {
+        e.stopPropagation();
+        openRangeActionMenu();
+    };
+}
+
+function handleCalendarDayClick(key, dateObj, dayData) {
+    if (!state.rangeStart || (state.rangeStart && state.rangeEnd)) {
+        state.rangeStart = key;
+        state.rangeEnd = null;
+    } else if (state.rangeStart && !state.rangeEnd) {
+        if (key < state.rangeStart) {
+            state.rangeStart = key;
+        } else if (key === state.rangeStart) {
+            // Clicked same day again: keep it selected as a single day, don't reset
+            state.rangeStart = key; 
+            state.rangeEnd = null;
+        } else {
+            state.rangeEnd = key;
+        }
+    }
+
+    state.selectedDate = key;
+    const dateInput = document.getElementById('expense-date');
+    if (dateInput) {
+        dateInput.value = key;
+        dateInput.dispatchEvent(new Event('change'));
+    }
+
+    renderHistory();
+    renderConsole();
+    updateRangePlusPosition();
+}
+
+function openRangeActionMenu() {
+    const key = state.rangeEnd || state.rangeStart;
+    const menu = document.getElementById('longpress-menu');
+    const overlay = document.getElementById('longpress-overlay');
+    const label = document.getElementById('longpress-date-label');
+    if (!menu || !overlay) return;
+    
+    let displayLabel = formatDateFull(state.rangeStart);
+    if (state.rangeEnd) displayLabel += ` – ${formatDateFull(state.rangeEnd)}`;
+
+    if (label) label.innerText = displayLabel;
+    menu.classList.remove('hidden');
+    overlay.classList.remove('hidden');
+
+    // Option 1: Add Note (Spread across range)
+    document.getElementById('lp-add-note').onclick = () => { 
+        closeLongpressMenu(); 
+        const note = prompt("Enter note to add across selected dates:");
+        if (note) saveRangeNote(note, state.rangeStart, state.rangeEnd || state.rangeStart);
+    };
+
+    // Option 2: Add Expense (Spread across range)
+    document.getElementById('lp-add-expense').onclick = () => { 
+        closeLongpressMenu(); 
+        const amount = parseFloat(prompt("Enter total amount for current range ($):"));
+        if (isNaN(amount)) return;
+        const cat = prompt("Enter category (e.g., Accommodation, Food, Transport):")?.toLowerCase();
+        if (cat) saveRangeExpense(amount, cat, state.rangeStart, state.rangeEnd || state.rangeStart);
+    };
+}
+
+async function saveRangeNote(text, start, end) {
+    // 1. Add as Itinerary/Event (for calendar view)
+    const newEvent = {
+        id: 'range-' + Date.now(),
+        title: text,
+        startDate: start,
+        endDate: end,
+        color: '#3ecf8e',
+        emoji: '📝'
+    };
+    state.calEvents.push(newEvent);
+    
+    // 2. Add to each Day's Notes
+    const startDate = new Date(start.replace(/-/g, '/'));
+    const endDate = new Date(end.replace(/-/g, '/'));
+    let curr = new Date(startDate);
+    while (curr <= endDate) {
+        const k = getLocalYYYYMMDD(curr);
+        const existing = state.dayNotes[k] || '';
+        state.dayNotes[k] = (existing ? existing + ' | ' : '') + text;
+        curr.setDate(curr.getDate() + 1);
+    }
+    
+    closeScratchpad();
+    renderHistory();
+    renderConsole();
+}
+
+async function saveRangeExpense(totalAmount, cat, start, end) {
+    const startDate = new Date(start.replace(/-/g, '/'));
+    const endDate = new Date(end.replace(/-/g, '/'));
+    const days = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+    const perDayAmt = totalAmount / (days || 1);
+
+    let curr = new Date(startDate);
+    while (curr <= endDate) {
+        const k = getLocalYYYYMMDD(curr);
+        const expense = {
+            id: 'range-exp-' + Date.now() + '-' + Math.random(),
+            date: curr.toISOString(),
+            category: cat,
+            localAmount: perDayAmt,
+            currency: state.homeCurrency,
+            usdAmount: perDayAmt,
+            symbol: CURRENCY_SYMBOLS[state.homeCurrency] || '$',
+            note: `Split from ${cat} range`
+        };
+        state.history.push(expense);
+        curr.setDate(curr.getDate() + 1);
+    }
+    
+    renderHistory();
+    renderConsole();
+}
+
+function handleLongPress(dateKey) {
+    state.rangeStart = dateKey;
+    state.rangeEnd = null;
+    openRangeActionMenu();
+}
+
+window.closeLongpressMenu = () => {
+    document.getElementById('longpress-menu').classList.add('hidden');
+    document.getElementById('longpress-overlay').classList.add('hidden');
+};
+
+function openAddModal(type, startKey, endKey) {
+    const modal = document.getElementById('add-cal-modal');
+    const title = document.getElementById('add-cal-modal-title');
+    const committedFields = document.getElementById('committed-fields');
+    const colorPicker = document.getElementById('event-color-picker');
+    
+    if (!modal) return;
+    modal.classList.add('active');
+    state.calEntryType = type;
+
+    const startInput = document.getElementById('cal-event-start');
+    const endInput = document.getElementById('cal-event-end');
+    const start = startKey || getLocalYYYYMMDD();
+    const end = endKey || start;
+    
+    if (startInput) startInput.value = start;
+    if (endInput) endInput.value = end;
+
+    if (type === 'committed') {
+        title.innerText = "Committed Expense";
+        if (committedFields) committedFields.classList.remove('hidden');
+        if (colorPicker) colorPicker.classList.add('hidden');
+    } else {
+        title.innerText = "New Event";
+        if (committedFields) committedFields.classList.add('hidden');
+        if (colorPicker) colorPicker.classList.remove('hidden');
+    }
+}
+
+window.closeAddModal = () => document.getElementById('add-cal-modal').classList.remove('active');
+
+window.saveCalEntry = () => {
+    const title = document.getElementById('cal-event-title').value.trim();
+    if (!title) return alert("Title required");
+    const start = document.getElementById('cal-event-start').value;
+    const end = document.getElementById('cal-event-end').value;
+    const emoji = document.getElementById('cal-event-emoji').value || '📌';
+    const color = document.querySelector('.color-swatch.active')?.dataset.color || '#f97316';
+
+    const newEvent = { 
+        id: Date.now(), 
+        title, 
+        emoji, 
+        startDate: start, 
+        endDate: end, 
+        color, 
+        notes: {} 
+    };
+    
+    state.calEvents.push(newEvent);
+    localStorage.setItem('nomad_cal_events', JSON.stringify(state.calEvents));
+
+    // Distribute note to each day in range
+    const startDate = new Date(start.replace(/-/g, '/'));
+    const endDate = new Date(end.replace(/-/g, '/'));
+    let curr = new Date(startDate);
+    while (curr <= endDate) {
+        const k = getLocalYYYYMMDD(curr);
+        const existing = state.dayNotes[k] || '';
+        state.dayNotes[k] = (existing ? existing + ' | ' : '') + title;
+        curr.setDate(curr.getDate() + 1);
+    }
+    localStorage.setItem('nomad_day_notes', JSON.stringify(state.dayNotes));
+
+    closeAddModal();
+    renderHistory();
+    renderConsole();
+};
+
+window.openScratchpad = (dateKey) => {
+    const sheet = document.getElementById('scratchpad-sheet');
+    const title = document.getElementById('scratchpad-title');
+    const text = document.getElementById('scratchpad-text');
+    if (!sheet) return;
+    
+    state.activeNoteDate = dateKey || null;
+    title.innerText = dateKey ? `Note for ${dateKey}` : `Monthly Notes (${state.calMonth+1}/${state.calYear})`;
+    const val = dateKey ? (state.dayNotes[dateKey] || '') : (state.dayNotes[`month_${state.calYear}_${state.calMonth}`] || '');
+    text.value = val;
+    sheet.classList.remove('hidden');
+};
+
+window.closeScratchpad = () => document.getElementById('scratchpad-sheet').classList.add('hidden');
+window.saveScratchpad = () => {
+    state.dayNotes[state.activeNoteDate || `month_${state.calYear}_${state.calMonth}`] = document.getElementById('scratchpad-text').value;
+    localStorage.setItem('nomad_day_notes', JSON.stringify(state.dayNotes));
+    closeScratchpad();
+};
+
+function promoteExpiredCommitted() {
+    const today = getLocalYYYYMMDD();
+    let changed = false;
+    state.committedExpenses.forEach(ce => {
+        if (!ce.promoted && ce.endDate < today) {
+            ce.promoted = true;
+            changed = true;
+        }
+    });
+    if (changed) localStorage.setItem('nomad_committed', JSON.stringify(state.committedExpenses));
+}
+
+document.getElementById('scratchpad-fab').onclick = (e) => {
+    e.stopPropagation();
+    document.getElementById('fab-menu').classList.toggle('hidden');
+};
+document.addEventListener('click', () => {
+    const menu = document.getElementById('fab-menu');
+    if (menu) menu.classList.add('hidden');
+});
+
+promoteExpiredCommitted();
+
+
+function setupCalendarListeners() {
+    document.querySelectorAll('.color-swatch').forEach(sw => {
+        sw.onclick = () => {
+            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+            sw.classList.add('active');
+        };
+    });
+}
+
+function formatDateFull(dateKey) {
+    if (!dateKey) return "";
+    return new Date(dateKey.replace(/-/g, '/')).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Global hook for renderRangeSummary toggle
+let currentRangeMode = 'dollar';
+
+function renderRangeSummary(startKey, endKey) {
+    const statsGrid = document.getElementById('range-stats');
+    if (!statsGrid) return;
+    statsGrid.innerHTML = '';
+
+    const rangeExpenses = state.history.filter(h => {
+        const k = getLocalYYYYMMDD(new Date(h.date));
+        return k >= startKey && k <= endKey;
+    });
+
+    const total = rangeExpenses.reduce((sum, e) => sum + e.usdAmount, 0);
+    const start = new Date(startKey.replace(/-/g, '/'));
+    const end = new Date(endKey.replace(/-/g, '/'));
+    const days = Math.round((end - start) / 86400000) + 1;
+    const avg = total / (days || 1);
+    
+    // 1. PRIMARY STATS (Total & Average)
+    const primaryRow = document.createElement('div');
+    primaryRow.className = 'range-summary-premium';
+    
+    const rangeLabel = document.createElement('div');
+    rangeLabel.className = 'range-date-label';
+    rangeLabel.innerText = `${formatDateFull(startKey)} – ${formatDateFull(endKey)}`;
+    primaryRow.appendChild(rangeLabel);
+
+    const statsCols = document.createElement('div');
+    statsCols.className = 'range-stats-row';
+    statsCols.innerHTML = `
+        <div class="stat-p">
+            <span class="label">Total Spent</span>
+            <span class="value main">${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${total.toFixed(0)}</span>
+        </div>
+        <div class="stat-p">
+            <span class="label">Daily Average</span>
+            <span class="value">${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${avg.toFixed(0)}</span>
+        </div>
+    `;
+    primaryRow.appendChild(statsCols);
+    statsGrid.appendChild(primaryRow);
+
+    // 2. CATEGORY BREAKDOWN (Stacked, Hidden by default)
+    const catMap = {};
+    rangeExpenses.forEach(e => {
+        catMap[e.category] = (catMap[e.category] || 0) + e.usdAmount;
+    });
+
+    const sortedCats = Object.entries(catMap).sort((a,b) => b[1]-a[1]);
+    
+    if (sortedCats.length > 0) {
+        const toggleBtn = document.createElement('div');
+        toggleBtn.className = 'category-breakdown-toggle';
+        toggleBtn.innerHTML = `<span>View Category Breakdown</span> <i>⌄</i>`;
+        
+        const catList = document.createElement('div');
+        catList.className = 'range-category-stack hidden';
+        
+        toggleBtn.onclick = () => {
+            catList.classList.toggle('hidden');
+            toggleBtn.querySelector('i').innerText = catList.classList.contains('hidden') ? '⌄' : '⌃';
+        };
+
+        sortedCats.forEach(([cat, val]) => {
+            const row = document.createElement('div');
+            row.className = 'cat-stack-row';
+            const percent = ((val / (total || 1)) * 100).toFixed(0);
+            const displayVal = (CURRENCY_SYMBOLS[state.homeCurrency] || '$') + val.toFixed(0);
+                
+            row.innerHTML = `
+                <span class="cat-name">${cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
+                <div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${percent}%"></div></div>
+                <span class="cat-val">${displayVal}</span>
+            `;
+            catList.appendChild(row);
+        });
+        statsGrid.appendChild(toggleBtn);
+        statsGrid.appendChild(catList);
+    }
+}
+
+function renderDayRows(dateKey, container, isFromRange = false, selectedCat = null) {
+    const rangeSummaryEl = document.getElementById('range-at-glance');
+    const calendarMainView = document.getElementById('calendar-main-view');
+
+    if (isFromRange) {
+        if (rangeSummaryEl) rangeSummaryEl.classList.add('hidden');
+        if (calendarMainView) calendarMainView.classList.add('hidden');
+
+        const backRow = document.createElement('tr');
+        backRow.innerHTML = `<td colspan="3" style="cursor:pointer; color:var(--primary); font-weight:800; padding:12px; font-size:0.75rem;">← Back to Range List</td>`;
+        backRow.onclick = () => {
+             if (rangeSummaryEl) rangeSummaryEl.classList.remove('hidden');
+             if (calendarMainView) calendarMainView.classList.remove('hidden');
+             renderConsole();
+        };
+        container.appendChild(backRow);
+    }
+
+    const titleRow = document.createElement('tr');
+    const d = new Date(dateKey.replace(/-/g, '/'));
+    titleRow.innerHTML = `<td colspan="3" class="day-divider">${d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</td>`;
+    container.appendChild(titleRow);
+
+    const expenses = state.history.filter(h => getLocalYYYYMMDD(new Date(h.date)) === dateKey);
+    const dayNote = state.dayNotes[dateKey] || '';
+    
+    // Get itinerary items for this day
+    const itineraries = state.calEvents.filter(ev => dateKey >= ev.startDate && dateKey <= ev.endDate);
+    
+    // Group expenses by category
+    const catMap = {};
+    expenses.forEach(e => {
+        catMap[e.category] = (catMap[e.category] || 0) + e.usdAmount;
+    });
+
+    const categories = Object.keys(catMap);
+    
+    // If no expenses, no itineraries, and no scratchpad, show placeholder
+    if (categories.length === 0 && itineraries.length === 0 && !dayNote) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="3" style="text-align:center; color:var(--text-dim); padding:2rem; font-size:0.8rem;">No entries. Use + to add notes or expenses.</td>`;
+        container.appendChild(tr);
+        return;
+    }
+
+    // --- 1. RENDER ITINERARY ITEMS ---
+    itineraries.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = 'itinerary-row';
+        tr.innerHTML = `
+            <td><span class="cat-cell itinerary-cat">${item.emoji || '📌'} Plan</span></td>
+            <td>—</td>
+            <td class="scratchpad-cell" onclick="openAddModal('event', '${item.startDate}', '${item.endDate}')">
+                <div class="note-cell itinerary-title">${item.title}</div>
+            </td>
+        `;
+        container.appendChild(tr);
+    });
+
+    // --- 2. RENDER EXPENSES ---
+    categories.forEach(cat => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        const val = catMap[cat];
+        const catExpenses = expenses.filter(e => e.category === cat && e.note);
+        const specificNote = catExpenses.length > 0 ? catExpenses[0].note : '';
+
+        tr.innerHTML = `
+            <td><span class="cat-cell">${cat.charAt(0).toUpperCase() + cat.slice(1)}</span></td>
+            <td><span class="val-cell">${CURRENCY_SYMBOLS[state.homeCurrency] || '$'}${val.toFixed(2)}</span></td>
+            <td class="scratchpad-cell" style="opacity: 0.8; font-size: 0.75rem;">${specificNote || 'View details'}</td>
+        `;
+        
+        tr.onclick = () => {
+            container.innerHTML = '';
+            renderDayRows(dateKey, container, isFromRange, cat);
+        };
+        container.appendChild(tr);
+    });
+
+    // --- 3. RENDER SCRATCHPAD ---
+    if (dayNote) {
+        const tr = document.createElement('tr');
+        tr.className = 'scratchpad-row';
+        tr.innerHTML = `
+            <td><span class="cat-cell" style="opacity:0.5;">Misc. Note</span></td>
+            <td>—</td>
+            <td class="scratchpad-cell" onclick="openScratchpad('${dateKey}')">
+                <div class="note-cell"><em>${dayNote}</em></div>
+            </td>
+        `;
+        container.appendChild(tr);
+    }
+}
+
+function renderConsole() {
+    const consoleBody = document.getElementById('console-table-body');
+    const rangeCard = document.getElementById('range-at-glance');
+    const titleEl = document.getElementById('console-date-title');
+    if (!consoleBody) return;
+
+    consoleBody.innerHTML = '';
+
+    if (state.rangeStart && state.rangeEnd) {
+        rangeCard.classList.remove('hidden');
+        const start = new Date(state.rangeStart.replace(/-/g, '/'));
+        const end = new Date(state.rangeEnd.replace(/-/g, '/'));
+        const diff = Math.round((end - start) / 86400000) + 1;
+        
+        if (diff > 30) {
+            state.rangeEnd = null;
+            return renderConsole();
+        }
+
+        if (titleEl) titleEl.innerText = `${formatDateFull(state.rangeStart)} – ${formatDateFull(state.rangeEnd)}`;
+        renderRangeSummary(state.rangeStart, state.rangeEnd);
+        
+        // Render ROLL-UP rows for the range
+        for (let i = 0; i < diff; i++) {
+            const d = new Date(start);
+            d.setDate(d.getDate() + i);
+            const key = getLocalYYYYMMDD(d);
+            
+            const dayExpenses = state.history.filter(h => getLocalYYYYMMDD(new Date(h.date)) === key);
+            const dayTotal = dayExpenses.reduce((sum, h) => sum + h.usdAmount, 0);
+            const itineraries = state.calEvents.filter(ev => key >= ev.startDate && key <= ev.endDate);
+            let summaryText = state.dayNotes[key] || '';
+            if (itineraries.length > 0) {
+                summaryText = `${itineraries[0].emoji || '📌'} ${itineraries[0].title}`;
+            }
+
+            const tr = document.createElement('tr');
+            tr.className = 'roll-up-row';
+            tr.innerHTML = `
+                <td><span class="roll-up-day-label">${d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</span></td>
+                <td><span class="val-cell">${dayTotal > 0 ? ((CURRENCY_SYMBOLS[state.homeCurrency] || '$') + dayTotal.toFixed(0)) : '—'}</span></td>
+                <td><span class="roll-up-summary" onclick="event.stopPropagation(); openScratchpad('${key}')">${summaryText ? summaryText.substring(0, 30) + (summaryText.length > 30 ? '...' : '') : 'Add a note..'}</span></td>
+            `;
+
+            // Drill down on click: focus this day without losing the range visually in the grid
+            tr.onclick = () => {
+                // Focus this specific day in the console while maintaining rangeStart/End in state
+                // We'll temporarily use a "focusDate" or just pass it to renderDayRows
+                renderDayRows(key, consoleBody, true);
+            };
+
+            consoleBody.appendChild(tr);
+        }
+    } else {
+        rangeCard.classList.add('hidden');
+        const dateKey = state.rangeStart || getLocalYYYYMMDD();
+        const d = new Date(dateKey.replace(/-/g, '/'));
+        if (titleEl) {
+            if (dateKey === getLocalYYYYMMDD()) {
+                titleEl.innerText = "Today";
+            } else {
+                titleEl.innerText = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+            }
+        }
+        renderDayRows(dateKey, consoleBody);
+    }
+}
+
+// Event hooks for index.html elements
+document.addEventListener('DOMContentLoaded', () => {
+    const btnDollar = document.getElementById('toggle-val-dollar');
+    const btnPercent = document.getElementById('toggle-val-percent');
+    if (btnDollar) btnDollar.onclick = () => {
+        currentRangeMode = 'dollar';
+        btnDollar.classList.add('active');
+        btnPercent.classList.remove('active');
+        renderConsole();
+    };
+    if (btnPercent) btnPercent.onclick = () => {
+        currentRangeMode = 'percent';
+        btnPercent.classList.add('active');
+        btnDollar.classList.remove('active');
+        renderConsole();
+    };
+
+    const lightbulb = document.getElementById('ai-lightbulb');
+    if (lightbulb) lightbulb.onclick = () => {
+        alert("AI Planning Assistant:\n\nLooking at your scratchpad for " + document.getElementById('console-date-title').innerText + ", I see you're planning a boat trip. Tip: Bali boat prices have increased recently; typical range is now " + CURRENCY_SYMBOLS[state.homeCurrency] + "35-50.");
+    };
+});
+
+// --- SHARE MODAL LOGIC ---
+let qrCodeInstance = null;
+
+function openShareModal() {
+    const modal = document.getElementById('share-modal');
+    const codeEl = document.getElementById('share-modal-code');
+    const code = state.currentTrip ? (state.currentTrip.join_code || '---') : '---';
+    
+    if (!modal) return;
+    
+    if (codeEl) codeEl.innerText = code;
+    modal.classList.add('active');
+    
+    // Generate QR Code
+    const qrContainer = document.getElementById('qrcode-container');
+    if (qrContainer) {
+        qrContainer.innerHTML = '';
+        // The QR code will just be the join code for now, or a link if we have one
+        const shareUrl = window.location.href; 
+        qrCodeInstance = new QRCode(qrContainer, {
+            text: `NOMAD_JOIN:${code}`, // Prefix to identify it
+            width: 112,
+            height: 112,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
+
+    // Wire up share options
+    document.getElementById('share-wa').onclick = () => {
+        const text = encodeURIComponent(`Hey Julie! Join my trip "${state.currentTrip.name}" so we can track together. My join code is: ${code}`);
+        window.open(`https://wa.me/?text=${text}`, '_blank');
+    };
+
+    document.getElementById('share-qr-expand').onclick = () => {
+        // Already shown, but we could make it bigger/fullscreen if needed
+        alert("Show this QR code to Julie's camera to join instantly!");
+    };
+
+    document.getElementById('share-other').onclick = async () => {
+        const shareData = {
+            title: `Join my trip: ${state.currentTrip.name}`,
+            text: `Hey! Track expenses with me on our trip "${state.currentTrip.name}". Use my join code: ${code}`,
+            url: window.location.href
+        };
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (e) {
+                copyToClipboard(code);
+            }
+        } else {
+            copyToClipboard(code);
+        }
+    };
+}
+
+window.closeShareModal = () => {
+    document.getElementById('share-modal').classList.remove('active');
+};
+
+// Replace handleInviteShare
+function handleInviteShare() {
+    openShareModal();
+}
+
+function handleInviteEmail() {
+    const code = state.currentTrip ? state.currentTrip.join_code : '---';
+    const subject = encodeURIComponent(`Join my trip: ${state.currentTrip.name}`);
+    const body = encodeURIComponent(`Hey! Track expenses with me on our trip "${state.currentTrip.name}". Use my join code: ${code}`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
 }

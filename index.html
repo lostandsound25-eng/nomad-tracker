@@ -278,43 +278,98 @@
                 </div>
             </section>
 
-            <!-- LOG/HISTORY TAB (Calendar View) -->
+            <!-- CALENDAR TAB -->
             <section id="tab-history" class="tab-content">
-                    <h2>Calendar</h2>
 
-
-
-                <div class="calendar-container">
-                    <div class="calendar-header">
-                        <button id="prev-month" class="cal-nav">&lt;</button>
-                        <h3 id="calendar-month-year">March 2026</h3>
-                        <button id="next-month" class="cal-nav">&gt;</button>
+                <div id="calendar-main-view">
+                    <!-- Month Header -->
+                    <div class="cal-top-header">
+                        <div class="cal-month-nav">
+                            <button id="prev-month" class="cal-nav">&lt;</button>
+                            <h3 id="calendar-month-year">March 2026</h3>
+                            <button id="next-month" class="cal-nav">&gt;</button>
+                        </div>
+                        <div class="cal-pills-row">
+                            <div class="cal-pill" id="pill-total">
+                                <span class="pill-label">Total Spent</span>
+                                <span class="pill-value" id="pill-total-val">$0</span>
+                            </div>
+                            <div class="cal-pill" id="pill-avg">
+                                <span class="pill-label">Avg / Day</span>
+                                <span class="pill-value" id="pill-avg-val">$0</span>
+                            </div>
+                            <div class="cal-pill" id="pill-top">
+                                <span class="pill-label">Top Category</span>
+                                <span class="pill-value" id="pill-top-val">—</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="calendar-grid-header">
-                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+
+                    <!-- Month Calendar Grid -->
+                    <div id="cal-month-view">
+                        <div class="calendar-grid-header">
+                            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                        </div>
+                        <div id="calendar-body" class="cal-month-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                        <button id="range-plus-btn" class="range-plus-btn hidden" title="Add to Range">+</button>
                     </div>
-                    <div id="calendar-body" class="calendar-grid">
-                        <!-- Populated via JS -->
+
+                    <!-- Range Selection Hint -->
+                    <p id="range-selection-hint" class="range-hint">Tap dates to select range (max 30 days)</p>
+                </div>
+
+                <!-- Dynamic Calendar Console (Below Grid) -->
+                <div id="cal-console" class="cal-console">
+                    <!-- 1. At a Glance Summary (Shows for Range Selection) -->
+                    <div id="range-at-glance" class="range-card hidden">
+                        <div class="range-card-header">
+                            <h4 id="range-label">Range Summary</h4>
+                            <div class="toggle-group">
+                                <button class="toggle-btn active" id="toggle-val-dollar">$</button>
+                                <button class="toggle-btn" id="toggle-val-percent">%</button>
+                            </div>
+                        </div>
+                        <div id="range-stats" class="range-stats-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- 2. The Tabulated Breakdown -->
+                    <div class="console-tabulation">
+                        <header class="tabulation-header">
+                            <span id="console-date-title">Today</span>
+                            <button id="ai-lightbulb" class="ai-lightbulb-btn" title="AI Recommendations">
+                                💡
+                            </button>
+                        </header>
+                        
+                        <div class="table-container">
+                            <table class="console-table" id="console-table">
+                                <thead>
+                                    <tr id="console-table-head">
+                                        <th>Category</th>
+                                        <th>Daily Total</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="console-table-body">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <div id="day-detail-panel" class="day-detail-panel">
-                    <div class="detail-header">
-                        <h4 id="detail-date">Select a day</h4>
-                        <button id="close-detail" class="close-btn">&times;</button>
-                    </div>
-                    <div id="detail-items" class="detail-items">
-                        <p class="empty-detail">Tap a day above to see breakdown</p>
-                    </div>
-                </div>
+                <!-- Range Selection Hint -->
+                <p id="range-selection-hint" class="range-hint">Tap dates to select range (max 30 days)</p>
 
-                <!-- Sync & Audit Section -->
+
+                <!-- Export Trip Card -->
                 <div class="sync-audit-card">
                     <div class="sync-header">
                         <h3>Trip Management</h3>
-                        <p id="range-selection-hint"
-                            style="font-size: 0.75rem; color: var(--primary); font-weight: 600;">Tap dates to select
-                            range</p>
                     </div>
                     <div class="audit-actions">
                         <button id="view-raw" class="audit-btn main-action">
@@ -340,7 +395,87 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Scratchpad FAB -->
+                <button class="scratchpad-fab" id="scratchpad-fab" title="Add note or event">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+                    </svg>
+                </button>
+
+                <!-- FAB Speed-Dial Menu -->
+                <div id="fab-menu" class="fab-menu hidden">
+                    <button class="fab-menu-item" onclick="openAddModal('event')">🎉 Add Event</button>
+                    <button class="fab-menu-item" onclick="openAddModal('committed')">🏠 Committed Expense</button>
+                    <button class="fab-menu-item" onclick="openScratchpad()">📝 Monthly Notes</button>
+                </div>
+
+                <!-- Scratchpad Bottom Sheet -->
+                <div id="scratchpad-sheet" class="bottom-sheet hidden">
+                    <div class="bottom-sheet-handle"></div>
+                    <div class="bottom-sheet-header">
+                        <h4 id="scratchpad-title">Notes</h4>
+                        <button class="close-btn" onclick="closeScratchpad()">&times;</button>
+                    </div>
+                    <textarea id="scratchpad-text" class="scratchpad-textarea" placeholder="Add a note.."></textarea>
+                    <button class="save-btn scratchpad-save-btn" onclick="saveScratchpad()">Save Notes</button>
+                </div>
+
+                <!-- Add Event / Committed Expense Modal -->
+                <div id="add-cal-modal" class="modal-overlay">
+                    <div class="modal-content add-cal-modal-content">
+                        <div class="modal-header">
+                            <h3 id="add-cal-modal-title">Add Itinerary Note</h3>
+                            <button class="close-btn" onclick="closeAddModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="input-group">
+                                <label>Title</label>
+                                <input type="text" id="cal-event-title" placeholder="e.g. Friends Visiting, Hotel Ubud">
+                            </div>
+                            <div class="input-group">
+                                <label>Emoji (optional)</label>
+                                <input type="text" id="cal-event-emoji" placeholder="🎉" maxlength="2" style="width:60px; text-align:center; font-size:1.4rem;">
+                            </div>
+                            <div class="input-group" style="display:flex; gap:10px;">
+                                <div style="flex:1">
+                                    <label>Start Date</label>
+                                    <input type="date" id="cal-event-start">
+                                </div>
+                                <div style="flex:1">
+                                    <label>End Date</label>
+                                    <input type="date" id="cal-event-end">
+                                </div>
+                            </div>
+                                </div>
+                            </div>
+                            <!-- Color picker for events -->
+                            <div id="event-color-picker" class="color-picker-row">
+                                <label>Color</label>
+                                <div class="color-swatches">
+                                    <button class="color-swatch active" data-color="#f97316" style="background:#f97316"></button>
+                                    <button class="color-swatch" data-color="#3b82f6" style="background:#3b82f6"></button>
+                                    <button class="color-swatch" data-color="#a855f7" style="background:#a855f7"></button>
+                                    <button class="color-swatch" data-color="#ec4899" style="background:#ec4899"></button>
+                                    <button class="color-swatch" data-color="#14b8a6" style="background:#14b8a6"></button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="save-btn" id="cal-modal-save-btn" onclick="saveCalEntry()">Add to Calendar</button>
+                    </div>
+                </div>
+
+                <!-- Long-Press Context Menu -->
+                <div id="longpress-menu" class="longpress-menu hidden">
+                    <div id="longpress-date-label" class="longpress-date"></div>
+                    <button class="lp-btn" id="lp-add-note">✍️ Add Note</button>
+                    <button class="lp-btn" id="lp-add-expense">💰 Add Expense</button>
+                    <button class="lp-close" onclick="closeLongpressMenu()">Cancel</button>
+                </div>
+                <div id="longpress-overlay" class="longpress-overlay hidden" onclick="closeLongpressMenu()"></div>
+
             </section>
+
 
             <!-- DASHBOARD TAB -->
             <section id="tab-dash" class="tab-content">
@@ -409,6 +544,7 @@
                 <p id="user-email-display"
                     style="font-size: 0.7rem; text-align: center; margin-top: 8px; color: var(--text-dim);"></p>
 
+
                 <div class="analytics-grid">
                     <div class="analytics-card main">
                         <span class="label">Daily Average</span>
@@ -435,6 +571,38 @@
                         <strong id="proj-quarter">$0.00</strong>
                     </div>
                 </div>
+
+                        <!-- Share Trip Modal -->
+                        <div id="share-modal" class="modal">
+                            <div class="modal-content" style="max-width: 320px; text-align: center;">
+                                <h2 style="margin-bottom: 5px;">Share Trip</h2>
+                                <p style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 20px;">Invite Julie to track with you</p>
+                                
+                                <div id="qrcode-container" style="margin: 0 auto 20px; width: 128px; height: 128px; border: 1px solid var(--border); padding: 8px; border-radius: 12px; background: #fff;"></div>
+                                
+                                <div class="share-options-grid">
+                                    <button class="share-opt-btn wa" id="share-wa">
+                                        <span class="opt-icon">💬</span>
+                                        <span class="opt-label">WhatsApp</span>
+                                    </button>
+                                    <button class="share-opt-btn qr" id="share-qr-expand">
+                                        <span class="opt-icon">📱</span>
+                                        <span class="opt-label">QR Code</span>
+                                    </button>
+                                    <button class="share-opt-btn other" id="share-other">
+                                        <span class="opt-icon">🔗</span>
+                                        <span class="opt-label">Other</span>
+                                    </button>
+                                </div>
+                                
+                                <div style="margin-top: 20px; padding: 10px; background: var(--bg); border-radius: 10px; border: 1px dashed var(--border);">
+                                    <span style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-dim); display: block;">Join Code</span>
+                                    <strong id="share-modal-code" style="font-size: 1.2rem; letter-spacing: 2px;">---</strong>
+                                </div>
+                                
+                                <button class="close-modal-btn" onclick="closeShareModal()" style="margin-top: 20px; width: 100%; height: 44px; border-radius: 12px; border: 1px solid var(--border); background: #fff; font-weight: 700; cursor: pointer;">Close</button>
+                            </div>
+                        </div>
 
 
                 <div class="category-breakdown-card">
@@ -591,6 +759,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <!-- Chart.js for Donut -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- Script -->
     <script src="script.js"></script>
 </body>
