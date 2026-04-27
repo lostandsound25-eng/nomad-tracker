@@ -4,14 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nomad Tracker | Calendar & Entry</title>
-
-    <meta name="description" content="Detailed expense tracking and analytics for digital nomads.">
+    <title>Nomad Tracker</title>
+    <meta name="description" content="Fast, simple expense tracking for long-term travelers.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="style.css">
     <!-- Supabase JS -->
@@ -19,657 +20,265 @@
 </head>
 
 <body>
-    <!-- AUTH SCREEN OVERLAY -->
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         AUTH SCREEN
+    ═══════════════════════════════════════════════════════════════ -->
     <div id="auth-overlay" class="auth-overlay">
         <div class="auth-card">
-            <div class="auth-header">
-                <div class="auth-logo">✨</div>
+            <div class="auth-logo-wrap">
+                <div class="auth-logo">✈️</div>
                 <h1>Nomad Tracker</h1>
-                <p id="auth-subtitle">Sign in to track your adventures</p>
+                <p id="auth-subtitle">Sign in to track your travels</p>
             </div>
 
             <div class="auth-form" id="login-form">
                 <div class="input-group">
                     <label>Email</label>
-                    <input type="email" id="auth-email" placeholder="hello@nomad.com">
+                    <input type="email" id="auth-email" placeholder="hello@nomad.com" autocomplete="email">
                 </div>
                 <div class="input-group">
                     <label>Password</label>
-                    <input type="password" id="auth-password" placeholder="••••••••">
+                    <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password">
                 </div>
-                <button id="btn-login" class="save-btn">Login</button>
-                <div class="auth-divider"><span>OR</span></div>
-                <button id="btn-google" class="google-btn">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"
-                        width="18">
-                    Sign in with Google
-                </button>
+                <button id="btn-login" class="primary-btn">Sign In</button>
                 <p class="auth-switch">Don't have an account? <a href="#" id="switch-to-signup">Sign Up</a></p>
             </div>
 
             <div class="auth-form hidden" id="signup-form">
                 <div class="input-group">
                     <label>Email</label>
-                    <input type="email" id="signup-email" placeholder="hello@nomad.com">
+                    <input type="email" id="signup-email" placeholder="hello@nomad.com" autocomplete="email">
                 </div>
                 <div class="input-group">
                     <label>Password</label>
-                    <input type="password" id="signup-password" placeholder="••••••••">
+                    <input type="password" id="signup-password" placeholder="••••••••" autocomplete="new-password">
                 </div>
-                <button id="btn-signup" class="save-btn">Create Account</button>
-                <div class="auth-divider"><span>OR</span></div>
-                <button id="btn-google-signup" class="google-btn">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"
-                        width="18">
-                    Sign up with Google
-                </button>
-                <p class="auth-switch">Already have an account? <a href="#" id="switch-to-login">Login</a></p>
+                <button id="btn-signup" class="primary-btn">Create Account</button>
+                <p class="auth-switch">Already have an account? <a href="#" id="switch-to-login">Sign In</a></p>
             </div>
 
-            <div id="auth-error" class="auth-error-msg hidden"></div>
+            <div id="auth-error" class="auth-error hidden"></div>
         </div>
     </div>
 
-    <div class="app-container hidden" id="main-app">
-        <!-- Main Navigation Tabs -->
+    <!-- ═══════════════════════════════════════════════════════════════
+         MAIN APP
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="main-app" class="app hidden">
+
+        <!-- Global Header -->
+        <header class="app-header">
+            <div class="header-trip" id="header-trip-name">Loading…</div>
+            <div class="header-right">
+                <div id="sync-badge" class="sync-badge hidden">
+                    <span class="sync-dot"></span>
+                    <span id="sync-label"></span>
+                </div>
+                <button id="open-settings-btn" class="icon-btn" aria-label="Settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- ── TRIP BUDGET BAR ─────────────────────────────────── -->
+        <div class="budget-bar" id="budget-bar">
+            <div class="budget-bar-inner">
+                <div class="budget-stat">
+                    <span class="budget-stat-label">Trip Avg</span>
+                    <span class="budget-stat-value" id="trip-avg">$—</span>
+                </div>
+                <div class="budget-divider"></div>
+                <div class="budget-stat">
+                    <span class="budget-stat-label">Goal</span>
+                    <span class="budget-stat-value" id="budget-goal-display">$100<span class="budget-goal-unit">/day</span></span>
+                </div>
+                <div class="budget-divider"></div>
+                <div class="budget-stat">
+                    <span class="budget-stat-label">Day</span>
+                    <span class="budget-stat-value" id="trip-day-count">—</span>
+                </div>
+                <div class="budget-track-wrap">
+                    <div class="budget-track">
+                        <div class="budget-fill" id="budget-fill"></div>
+                    </div>
+                    <span class="budget-track-label" id="budget-track-label">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── BOTTOM NAVIGATION ───────────────────────────────── -->
         <nav class="tab-bar">
-            <button class="tab-btn active" onclick="switchTab('log')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 5v14M5 12h14" />
+            <button class="tab-btn active" id="tab-btn-day" onclick="switchTab('day')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>
                 </svg>
-                <span>Expense</span>
+                <span>Today</span>
             </button>
-
-            <button class="tab-btn" onclick="switchTab('history')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
+            <button class="tab-btn" id="tab-btn-log" onclick="switchTab('log')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>
                 </svg>
-                <span>Calendar</span>
+                <span>Log</span>
             </button>
-
-            <button class="tab-btn" onclick="switchTab('dash')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-                    <path d="M22 12A10 10 0 0 0 12 2v10z" />
+            <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                 </svg>
-                <span>Dashboard</span>
+                <span>Settings</span>
             </button>
         </nav>
 
-        <main class="content">
-            <!-- EXPENSE TAB -->
-            <section id="tab-log" class="tab-content active">
-                <header class="section-header tracker-header" style="position: relative;">
-                    <div class="trip-info-pill" id="open-trip-selector">
-                        <span id="active-trip-name">Select Trip</span>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m6 9 6 6 6-6" />
-                        </svg>
-                    </div>
-                    <div id="offline-status-badge" class="offline-badge">
-                        <span class="status-icon"></span>
-                        <span id="offline-status-text">Cloud Syncing</span>
-                    </div>
+        <!-- ── MAIN CONTENT ────────────────────────────────────── -->
+        <main class="main-content">
 
-                </header>
+            <!-- ════════════════════════════════════
+                 TAB: DAY VIEW
+            ════════════════════════════════════ -->
+            <section id="tab-day" class="tab-section active">
 
-                <div class="daily-progress-card">
-                    <h3 class="card-mini-title text-center">Today's Progress</h3>
-                    <div class="progress-stats-container">
-                        <div class="currency-toggle-widget" id="progress-toggle-btn">
-                            <span id="toggle-home-code" class="toggle-code active">USD</span>
-                            <div class="toggle-arrows">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="m7 16-4-4 4-4m14 8 4-4-4-4" />
-                                    <path d="M3 12h21" />
-                                </svg>
-                            </div>
-                            <span id="toggle-spending-code" class="toggle-code">IDR</span>
-                        </div>
-                        <div class="progress-info-minimal">
-                            <div class="mini-stat-item">
-                                <span class="mini-label">Spent</span>
-                                <strong id="today-spent">$0.00</strong>
-                            </div>
-                            <div class="mini-stat-item align-right">
-                                <span class="mini-label" id="budget-status-label">Remaining</span>
-                                <strong id="today-remaining">$50.00</strong>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="progress-interactive-row">
-                        <div class="progress-bar-bg-large">
-                            <div id="today-progress-fill" class="progress-bar-fill-large"></div>
-                            <span id="progress-percent-label" class="progress-percent-badge">0%</span>
-                        </div>
-                        <div class="budget-goal-widget">
-                            <div class="budget-input-group-mini">
-                                <span id="budget-symbol-mini" class="mini-sym">$</span>
-                                <input type="number" id="daily-budget-input" class="subtle-input budget-input-locked"
-                                    placeholder="50" readonly>
-                                <button id="budget-lock-btn" class="budget-lock-btn-mini" title="Edit Budget">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Date Navigator -->
+                <div class="date-nav">
+                    <button class="date-nav-btn" id="prev-day-btn" aria-label="Previous day">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <button class="date-nav-center" id="date-display-btn">
+                        <span class="date-nav-dayname" id="date-dayname">Monday</span>
+                        <span class="date-nav-date" id="date-fulldate">Apr 28, 2026</span>
+                    </button>
+                    <button class="date-nav-btn" id="next-day-btn" aria-label="Next day">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
                 </div>
 
-                <div class="entry-card">
-                    <h3 class="entry-card-title text-center">New Expense</h3>
-                    <div class="entry-meta-top">
-                        <div class="meta-col">
-                            <label>Expense date(s)</label>
-                            <div class="meta-trigger-clean" id="open-date-modal">
-                                <div class="trigger-stack">
-                                    <span id="date-label-text" class="meta-sub-label">Today</span>
-                                    <span id="display-date-text" class="meta-main-value">March 16</span>
-                                </div>
-                                <div class="trigger-icon-green">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                                        <line x1="3" y1="10" x2="21" y2="10"></line>
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="meta-col">
-                            <label>Currency</label>
-                            <div class="meta-trigger-clean" id="open-spending-currency-modal">
-                                <div class="trigger-stack">
-                                    <span class="meta-sub-label">Spending</span>
-                                    <span id="display-spending-currency" class="meta-main-value">USD ($)</span>
-                                </div>
-                                <div class="trigger-icon-green">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <select id="local-currency" class="hidden">
-                                <option value="USD">USD ($)</option>
-                                <option value="EUR">EUR (€)</option>
-                                <option value="GBP">GBP (£)</option>
-                                <option value="IDR">IDR (Rp)</option>
-                                <option value="THB">THB (฿)</option>
-                                <option value="VND">VND (₫)</option>
-                                <option value="LAK">LAK (₭)</option>
-                                <option value="KHR">KHR (៛)</option>
-                                <option value="MXN">MXN ($)</option>
-                                <option value="JPY">JPY (¥)</option>
-                            </select>
-                        </div>
-                    </div>
-
-
-
-                    <div class="amount-container">
-                        <div id="amount-scaler" class="amount-scaler">
-                            <span class="currency-symbol" id="active-symbol">Rp</span>
-                            <input type="text" id="local-amount" placeholder="0" inputmode="decimal" autofocus
-                                autocomplete="off">
-                        </div>
-                    </div>
-
-                    <div class="usd-preview">
-                        ≈ <span id="usd-amount">0.00</span> <span id="home-symbol-label">USD</span>
-                        <div class="fx-rate-subtext" id="fx-rate"
-                            style="font-size: 0.75rem; color: var(--text-dim); margin-top: 6px;">1 spent ≈ 1 home</div>
-                    </div>
-
-                    <div id="split-indicator" class="split-indicator hidden">
-                        <span class="split-icon">⚖️</span>
-                        <span id="split-text">Spreading $0.00 across 0 days</span>
-                    </div>
-
-                    <div class="notes-wrapper">
-                        <input type="text" id="expense-note" placeholder="Add a note (optional)..." autocomplete="off">
-                    </div>
-
-
-                    <div class="category-grid">
-                        <button class="cat-btn" data-category="accommodation">
-                            <span class="icon">🏠</span>
-                            <span>Stay</span>
-                        </button>
-                        <button class="cat-btn" data-category="breakfast">
-                            <span class="icon">☕</span>
-                            <span>B-fast</span>
-                        </button>
-                        <button class="cat-btn" data-category="lunch">
-                            <span class="icon">🥪</span>
-                            <span>Lunch</span>
-                        </button>
-                        <button class="cat-btn" data-category="dinner">
-                            <span class="icon">🍲</span>
-                            <span>Dinner</span>
-                        </button>
-                        <button class="cat-btn" data-category="transportation">
-                            <span class="icon">🛵</span>
-                            <span>Transport</span>
-                        </button>
-                        <button class="cat-btn" data-category="miscellaneous">
-                            <span class="icon">✨</span>
-                            <span>Misc</span>
-                        </button>
-                    </div>
-
-                    <button id="save-expense" class="save-btn">Save</button>
-                    <div id="offline-notification" class="offline-notice hidden"></div>
-
-
-
-                </div>
-            </section>
-
-            <!-- CALENDAR TAB -->
-            <section id="tab-history" class="tab-content">
-
-                <div id="calendar-main-view">
-                    <!-- Month Header -->
-                    <div class="cal-top-header">
-                        <div class="cal-month-nav">
-                            <button id="prev-month" class="cal-nav">&lt;</button>
-                            <h3 id="calendar-month-year">March 2026</h3>
-                            <button id="next-month" class="cal-nav">&gt;</button>
-                        </div>
-                        <div class="cal-pills-row">
-                            <div class="cal-pill" id="pill-total">
-                                <span class="pill-label">Total Spent</span>
-                                <span class="pill-value" id="pill-total-val">$0</span>
-                            </div>
-                            <div class="cal-pill" id="pill-avg">
-                                <span class="pill-label">Avg / Day</span>
-                                <span class="pill-value" id="pill-avg-val">$0</span>
-                            </div>
-                            <div class="cal-pill" id="pill-top">
-                                <span class="pill-label">Top Category</span>
-                                <span class="pill-value" id="pill-top-val">—</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Month Calendar Grid -->
-                    <div id="cal-month-view">
-                        <div class="calendar-grid-header">
-                            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-                        </div>
-                        <div id="calendar-body" class="cal-month-grid">
-                            <!-- Populated by JS -->
-                        </div>
-                        <button id="range-plus-btn" class="range-plus-btn hidden" title="Add to Range">+</button>
-                    </div>
-
-                    <!-- Range Selection Hint -->
-                    <p id="range-selection-hint" class="range-hint">Tap dates to select range (max 30 days)</p>
+                <!-- Location Row -->
+                <div class="location-row">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    <input type="text" id="location-input" class="location-input" placeholder="Where are you sleeping tonight?" autocomplete="off" autocorrect="off">
                 </div>
 
-                <!-- Dynamic Calendar Console (Below Grid) -->
-                <div id="cal-console" class="cal-console">
-                    <!-- 1. At a Glance Summary (Shows for Range Selection) -->
-                    <div id="range-at-glance" class="range-card hidden">
-                        <div class="range-card-header">
-                            <h4 id="range-label">Range Summary</h4>
-                            <div class="toggle-group">
-                                <button class="toggle-btn active" id="toggle-val-dollar">$</button>
-                                <button class="toggle-btn" id="toggle-val-percent">%</button>
-                            </div>
-                        </div>
-                        <div id="range-stats" class="range-stats-grid">
-                            <!-- Populated by JS -->
-                        </div>
-                    </div>
+                <!-- Day Total -->
+                <div class="day-total-row">
+                    <span class="day-total-label">Today's Total</span>
+                    <span class="day-total-value" id="day-total-value">$0.00</span>
+                </div>
 
-                    <!-- 2. The Tabulated Breakdown -->
-                    <div class="console-tabulation">
-                        <header class="tabulation-header">
-                            <span id="console-date-title">Today</span>
-                            <button id="ai-lightbulb" class="ai-lightbulb-btn" title="AI Recommendations">
-                                💡
-                            </button>
-                        </header>
-                        
-                        <div class="table-container">
-                            <table class="console-table" id="console-table">
-                                <thead>
-                                    <tr id="console-table-head">
-                                        <th>Category</th>
-                                        <th>Daily Total</th>
-                                        <th>Notes</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="console-table-body">
-                                    <!-- Populated by JS -->
-                                </tbody>
-                            </table>
+                <!-- Category Rows -->
+                <div class="category-ledger" id="category-ledger">
+
+                    <div class="ledger-row" data-category="breakfast" id="row-breakfast">
+                        <div class="ledger-row-left">
+                            <span class="ledger-icon">☕</span>
+                            <span class="ledger-label">Breakfast</span>
+                        </div>
+                        <div class="ledger-row-right">
+                            <span class="ledger-amount" id="amt-breakfast">—</span>
+                            <button class="ledger-add-btn" data-category="breakfast" aria-label="Add breakfast expense">+</button>
                         </div>
                     </div>
-                </div>
 
-                <!-- Range Selection Hint -->
-                <p id="range-selection-hint" class="range-hint">Tap dates to select range (max 30 days)</p>
-
-
-                <!-- Export Trip Card -->
-                <div class="sync-audit-card">
-                    <div class="sync-header">
-                        <h3>Trip Management</h3>
-                    </div>
-                    <div class="audit-actions">
-                        <button id="view-raw" class="audit-btn main-action">
-                            <span>📋</span> Export Trip Data
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Raw Data Modal -->
-                <div id="raw-modal" class="modal-overlay">
-                    <div class="modal-content export-modal">
-                        <header class="export-header">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <h2>Export</h2>
-                                <button class="copy-btn">Copy for Sheets</button>
-                            </div>
-                            <button onclick="closeModal()" class="close-btn">&times;</button>
-                        </header>
-                        <div class="table-container">
-                            <table class="export-table" id="raw-log-content">
-                                <!-- Populated via JS -->
-                            </table>
+                    <div class="ledger-row" data-category="lunch" id="row-lunch">
+                        <div class="ledger-row-left">
+                            <span class="ledger-icon">🥪</span>
+                            <span class="ledger-label">Lunch</span>
+                        </div>
+                        <div class="ledger-row-right">
+                            <span class="ledger-amount" id="amt-lunch">—</span>
+                            <button class="ledger-add-btn" data-category="lunch" aria-label="Add lunch expense">+</button>
                         </div>
                     </div>
-                </div>
 
-                <!-- Scratchpad FAB -->
-                <button class="scratchpad-fab" id="scratchpad-fab" title="Add note or event">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
-                    </svg>
-                </button>
-
-                <!-- FAB Speed-Dial Menu -->
-                <div id="fab-menu" class="fab-menu hidden">
-                    <button class="fab-menu-item" onclick="openAddModal('event')">🎉 Add Event</button>
-                    <button class="fab-menu-item" onclick="openAddModal('committed')">🏠 Committed Expense</button>
-                    <button class="fab-menu-item" onclick="openScratchpad()">📝 Monthly Notes</button>
-                </div>
-
-                <!-- Scratchpad Bottom Sheet -->
-                <div id="scratchpad-sheet" class="bottom-sheet hidden">
-                    <div class="bottom-sheet-handle"></div>
-                    <div class="bottom-sheet-header">
-                        <h4 id="scratchpad-title">Notes</h4>
-                        <button class="close-btn" onclick="closeScratchpad()">&times;</button>
-                    </div>
-                    <textarea id="scratchpad-text" class="scratchpad-textarea" placeholder="Add a note.."></textarea>
-                    <button class="save-btn scratchpad-save-btn" onclick="saveScratchpad()">Save Notes</button>
-                </div>
-
-                <!-- Add Event / Committed Expense Modal -->
-                <div id="add-cal-modal" class="modal-overlay">
-                    <div class="modal-content add-cal-modal-content">
-                        <div class="modal-header">
-                            <h3 id="add-cal-modal-title">Add Itinerary Note</h3>
-                            <button class="close-btn" onclick="closeAddModal()">&times;</button>
+                    <div class="ledger-row" data-category="dinner" id="row-dinner">
+                        <div class="ledger-row-left">
+                            <span class="ledger-icon">🍲</span>
+                            <span class="ledger-label">Dinner</span>
                         </div>
-                        <div class="modal-body">
-                            <div class="input-group">
-                                <label>Title</label>
-                                <input type="text" id="cal-event-title" placeholder="e.g. Friends Visiting, Hotel Ubud">
-                            </div>
-                            <div class="input-group">
-                                <label>Emoji (optional)</label>
-                                <input type="text" id="cal-event-emoji" placeholder="🎉" maxlength="2" style="width:60px; text-align:center; font-size:1.4rem;">
-                            </div>
-                            <div class="input-group" style="display:flex; gap:10px;">
-                                <div style="flex:1">
-                                    <label>Start Date</label>
-                                    <input type="date" id="cal-event-start">
-                                </div>
-                                <div style="flex:1">
-                                    <label>End Date</label>
-                                    <input type="date" id="cal-event-end">
-                                </div>
-                            </div>
-                                </div>
-                            </div>
-                            <!-- Color picker for events -->
-                            <div id="event-color-picker" class="color-picker-row">
-                                <label>Color</label>
-                                <div class="color-swatches">
-                                    <button class="color-swatch active" data-color="#f97316" style="background:#f97316"></button>
-                                    <button class="color-swatch" data-color="#3b82f6" style="background:#3b82f6"></button>
-                                    <button class="color-swatch" data-color="#a855f7" style="background:#a855f7"></button>
-                                    <button class="color-swatch" data-color="#ec4899" style="background:#ec4899"></button>
-                                    <button class="color-swatch" data-color="#14b8a6" style="background:#14b8a6"></button>
-                                </div>
-                            </div>
+                        <div class="ledger-row-right">
+                            <span class="ledger-amount" id="amt-dinner">—</span>
+                            <button class="ledger-add-btn" data-category="dinner" aria-label="Add dinner expense">+</button>
                         </div>
-                        <button class="save-btn" id="cal-modal-save-btn" onclick="saveCalEntry()">Add to Calendar</button>
                     </div>
+
+                    <div class="ledger-row" data-category="transportation" id="row-transportation">
+                        <div class="ledger-row-left">
+                            <span class="ledger-icon">🛵</span>
+                            <span class="ledger-label">Transport</span>
+                        </div>
+                        <div class="ledger-row-right">
+                            <span class="ledger-amount" id="amt-transportation">—</span>
+                            <button class="ledger-add-btn" data-category="transportation" aria-label="Add transport expense">+</button>
+                        </div>
+                    </div>
+
+                    <div class="ledger-row ledger-row--stay" data-category="accommodation" id="row-accommodation">
+                        <div class="ledger-row-left">
+                            <span class="ledger-icon">🏠</span>
+                            <span class="ledger-label">Stay</span>
+                        </div>
+                        <div class="ledger-row-right">
+                            <span class="ledger-amount" id="amt-accommodation">—</span>
+                            <button class="ledger-add-btn" data-category="accommodation" aria-label="Add accommodation expense">+</button>
+                        </div>
+                    </div>
+
+                    <div class="ledger-row" data-category="miscellaneous" id="row-miscellaneous">
+                        <div class="ledger-row-left">
+                            <span class="ledger-icon">✨</span>
+                            <span class="ledger-label">Other</span>
+                        </div>
+                        <div class="ledger-row-right">
+                            <span class="ledger-amount" id="amt-miscellaneous">—</span>
+                            <button class="ledger-add-btn" data-category="miscellaneous" aria-label="Add misc expense">+</button>
+                        </div>
+                    </div>
+
                 </div>
 
-                <!-- Long-Press Context Menu -->
-                <div id="longpress-menu" class="longpress-menu hidden">
-                    <div id="longpress-date-label" class="longpress-date"></div>
-                    <button class="lp-btn" id="lp-add-note">✍️ Add Note</button>
-                    <button class="lp-btn" id="lp-add-expense">💰 Add Expense</button>
-                    <button class="lp-close" onclick="closeLongpressMenu()">Cancel</button>
+                <!-- Notes Field -->
+                <div class="day-notes-wrap">
+                    <textarea id="day-notes-input" class="day-notes-input" placeholder="Planning notes for this day… e.g. look into island hopping, flight at 7pm" rows="2"></textarea>
+                    <button class="notes-save-btn" id="notes-save-btn">Save Note</button>
                 </div>
-                <div id="longpress-overlay" class="longpress-overlay hidden" onclick="closeLongpressMenu()"></div>
 
             </section>
 
+            <!-- ════════════════════════════════════
+                 TAB: LOG (HISTORY)
+            ════════════════════════════════════ -->
+            <section id="tab-log" class="tab-section">
 
-            <!-- DASHBOARD TAB -->
-            <section id="tab-dash" class="tab-content">
-                <header class="section-header">
-                    <h1>Dashboard</h1>
-                    <p>Google Sheets Connected Dashboard</p>
-                </header>
-
-                <div class="settings-card">
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                        <div>
-                            <h3 style="margin: 0; font-size: 1rem;">Active Trip</h3>
-                            <p style="font-size: 0.65rem; color: var(--text-dim); margin-top: 2px;">Invite a partner to
-                                track together</p>
-                        </div>
-                        <div
-                            style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                            <span id="trip-join-code-badge" class="join-code-pill">---</span>
-                            <div class="invite-actions">
-                                <button class="mini-icon-btn" id="btn-invite-share" title="Share Code">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                                        <polyline points="16 6 12 2 8 6"></polyline>
-                                        <line x1="12" y1="2" x2="12" y2="15"></line>
-                                    </svg>
-                                </button>
-                                <button class="mini-icon-btn" id="btn-invite-email" title="Invite via Email">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path
-                                            d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z">
-                                        </path>
-                                        <polyline points="22,6 12,13 2,6"></polyline>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="trip-selector-row">
-                        <select id="trip-selector" class="currency-select">
-                            <!-- Populated via JS -->
-                        </select>
-                    </div>
+                <div class="log-header">
+                    <h2 class="log-title">Travel Log</h2>
+                    <button class="export-btn" id="export-btn" title="Export to CSV">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Export
+                    </button>
                 </div>
 
+                <div id="log-list" class="log-list">
+                    <!-- Populated by JS -->
+                </div>
+
+            </section>
+
+            <!-- ════════════════════════════════════
+                 TAB: SETTINGS
+            ════════════════════════════════════ -->
+            <section id="tab-settings" class="tab-section">
+
+                <h2 class="settings-title">Settings</h2>
+
                 <div class="settings-card">
-                    <h3>App Settings</h3>
                     <div class="settings-row">
-                        <div class="currency-col" style="flex: 1;">
-                            <label>Home Currency</label>
-                            <select id="home-currency" class="currency-select">
-                                <option value="USD">USD ($)</option>
-                                <option value="EUR">EUR (€)</option>
-                                <option value="GBP">GBP (£)</option>
-                                <option value="AUD">AUD ($)</option>
-                                <option value="CAD">CAD ($)</option>
-                                <option value="OTHER_HOME">🔍 Other...</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <button id="btn-logout" class="danger-btn" style="width: 100%; margin-top: 1rem;">Log Out</button>
-                <p id="user-email-display"
-                    style="font-size: 0.7rem; text-align: center; margin-top: 8px; color: var(--text-dim);"></p>
-
-
-                <div class="analytics-grid">
-                    <div class="analytics-card main">
-                        <span class="label">Daily Average</span>
-                        <span class="value" id="dash-avg">$0.00</span>
-                    </div>
-                    <div class="analytics-card">
-                        <span class="label">Days Tracked</span>
-                        <span class="value" id="dash-days">0</span>
-                    </div>
-                    <div class="analytics-card">
-                        <span class="label">Total Spent</span>
-                        <span class="value" id="dash-total">$0.00</span>
-                    </div>
-                </div>
-
-                <div class="projections-card">
-                    <h3>Future Projections</h3>
-                    <div class="projection-row">
-                        <span>30-Day Outlook</span>
-                        <strong id="proj-month">$0.00</strong>
-                    </div>
-                    <div class="projection-row secondary">
-                        <span>90-Day Outlook</span>
-                        <strong id="proj-quarter">$0.00</strong>
-                    </div>
-                </div>
-
-                        <!-- Share Trip Modal -->
-                        <div id="share-modal" class="modal">
-                            <div class="modal-content" style="max-width: 320px; text-align: center;">
-                                <h2 style="margin-bottom: 5px;">Share Trip</h2>
-                                <p style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 20px;">Invite Julie to track with you</p>
-                                
-                                <div id="qrcode-container" style="margin: 0 auto 20px; width: 128px; height: 128px; border: 1px solid var(--border); padding: 8px; border-radius: 12px; background: #fff;"></div>
-                                
-                                <div class="share-options-grid">
-                                    <button class="share-opt-btn wa" id="share-wa">
-                                        <span class="opt-icon">💬</span>
-                                        <span class="opt-label">WhatsApp</span>
-                                    </button>
-                                    <button class="share-opt-btn qr" id="share-qr-expand">
-                                        <span class="opt-icon">📱</span>
-                                        <span class="opt-label">QR Code</span>
-                                    </button>
-                                    <button class="share-opt-btn other" id="share-other">
-                                        <span class="opt-icon">🔗</span>
-                                        <span class="opt-label">Other</span>
-                                    </button>
-                                </div>
-                                
-                                <div style="margin-top: 20px; padding: 10px; background: var(--bg); border-radius: 10px; border: 1px dashed var(--border);">
-                                    <span style="font-size: 0.6rem; text-transform: uppercase; color: var(--text-dim); display: block;">Join Code</span>
-                                    <strong id="share-modal-code" style="font-size: 1.2rem; letter-spacing: 2px;">---</strong>
-                                </div>
-                                
-                                <button class="close-modal-btn" onclick="closeShareModal()" style="margin-top: 20px; width: 100%; height: 44px; border-radius: 12px; border: 1px solid var(--border); background: #fff; font-weight: 700; cursor: pointer;">Close</button>
-                            </div>
-                        </div>
-
-
-                <div class="category-breakdown-card">
-                    <h3>Spending by Category</h3>
-                    <div class="donut-chart-container">
-                        <canvas id="category-donut"></canvas>
-                        <div id="donut-center" class="donut-center">
-                            <span class="total-label">Total</span>
-                            <span id="donut-total-val" class="total-val">$0</span>
-                        </div>
-                    </div>
-                    <div id="category-stats" class="category-stats">
-                        <!-- Populated via JS -->
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <!-- Date & Range Selector Modal -->
-    <div id="date-modal" class="modal-overlay">
-        <div class="modal-content calendar-modal">
-            <header class="modal-header-sleek">
-                <h3>Select Date or Range</h3>
-                <button id="close-date-modal" class="close-btn">&times;</button>
-            </header>
-
-            <div class="calendar-container modal-calendar">
-                <div class="calendar-header">
-                    <button id="modal-prev-month" class="cal-nav">&lt;</button>
-                    <h3 id="modal-calendar-month-year">March 2026</h3>
-                    <button id="modal-next-month" class="cal-nav">&gt;</button>
-                </div>
-                <div class="calendar-grid-header">
-                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-                </div>
-                <div id="modal-calendar-body" class="calendar-grid">
-                    <!-- Populated via JS -->
-                </div>
-            </div>
-
-            <div class="range-status-pill">
-                <span id="modal-range-hint">Tap a date to start</span>
-            </div>
-
-            <button id="confirm-date" class="save-btn">Confirm Selection</button>
-        </div>
-    </div>
-
-    <!-- New Trip Modal -->
-    <div id="new-trip-modal" class="modal-overlay">
-        <div class="modal-content select-modal">
-            <header class="modal-header-sleek">
-                <h3>Plan New Trip</h3>
-                <button id="close-new-trip-modal" class="close-btn">&times;</button>
-            </header>
-
-            <div class="new-trip-form">
-                <div class="input-group">
-                    <label>Trip Name</label>
-                    <input type="text" id="new-trip-name" placeholder="e.g., Southeast Asia 2026">
-                </div>
-
-                <div class="settings-row" style="margin-top: 1rem;">
-                    <div class="currency-col">
-                        <label>Home Currency</label>
-                        <select id="new-trip-home-currency" class="currency-select">
+                        <label class="settings-label">Home Currency</label>
+                        <select id="home-currency" class="settings-select">
                             <option value="USD">USD ($)</option>
                             <option value="EUR">EUR (€)</option>
                             <option value="GBP">GBP (£)</option>
@@ -677,91 +286,167 @@
                             <option value="CAD">CAD ($)</option>
                         </select>
                     </div>
-                    <div class="currency-col">
-                        <label>Daily Budget</label>
-                        <input type="number" id="new-trip-budget" class="subtle-input"
-                            style="background: var(--bg); border: 1px solid var(--border);" placeholder="50">
+                    <div class="settings-row">
+                        <label class="settings-label">Daily Budget Goal</label>
+                        <div class="settings-budget-input">
+                            <span id="budget-symbol">$</span>
+                            <input type="number" id="daily-budget" placeholder="100" min="1">
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <label class="settings-label">Trip Start Date</label>
+                        <input type="date" id="trip-start-date" class="settings-date">
+                    </div>
+                    <div class="settings-row">
+                        <label class="settings-label">Trip Name</label>
+                        <input type="text" id="trip-name-input" class="settings-text-input" placeholder="e.g. Ireland → Australia">
+                    </div>
+                    <button class="primary-btn" id="save-settings-btn">Save Settings</button>
+                </div>
+
+                <div class="settings-card settings-account">
+                    <p id="user-email-display" class="user-email"></p>
+                    <button id="btn-logout" class="danger-btn">Sign Out</button>
+                </div>
+
+            </section>
+
+        </main><!-- /main-content -->
+
+    </div><!-- /main-app -->
+
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         EXPENSE ENTRY BOTTOM SHEET
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="entry-overlay" class="sheet-overlay hidden" onclick="closeEntrySheet()"></div>
+    <div id="entry-sheet" class="bottom-sheet hidden">
+        <div class="sheet-handle"></div>
+
+        <div class="sheet-header">
+            <div class="sheet-category-badge" id="sheet-category-badge">☕ Breakfast</div>
+            <button class="sheet-close" onclick="closeEntrySheet()">✕</button>
+        </div>
+
+        <!-- Amount Input -->
+        <div class="sheet-amount-wrap">
+            <div class="sheet-currency-row">
+                <button class="currency-chip" id="sheet-currency-btn">
+                    <span id="sheet-currency-flag">🌏</span>
+                    <span id="sheet-currency-code">IDR</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+            </div>
+            <div class="sheet-amount-display">
+                <span class="sheet-symbol" id="sheet-symbol">Rp</span>
+                <input type="text" id="entry-amount" class="sheet-amount-input" placeholder="0" inputmode="decimal" autocomplete="off">
+            </div>
+            <div class="sheet-conversion" id="sheet-conversion">≈ $0.00 USD</div>
+            <div class="sheet-expr-hint" id="sheet-expr-hint"></div>
+        </div>
+
+        <!-- Notes Input -->
+        <div class="sheet-notes-wrap">
+            <input type="text" id="entry-note" class="sheet-notes-input" placeholder="Note (e.g. Grab + moped + gas)" autocomplete="off">
+        </div>
+
+        <!-- Multi-night toggle (for accommodation) -->
+        <div class="sheet-multinight" id="sheet-multinight" style="display:none">
+            <label class="multinight-toggle-label">
+                <input type="checkbox" id="multinight-toggle">
+                <span>Multi-night stay</span>
+            </label>
+            <div id="multinight-fields" class="multinight-fields hidden">
+                <div class="multinight-row">
+                    <div class="mn-field">
+                        <label>From</label>
+                        <input type="date" id="mn-start">
+                    </div>
+                    <div class="mn-field">
+                        <label>To</label>
+                        <input type="date" id="mn-end">
                     </div>
                 </div>
-
-                <button id="btn-create-trip-confirm" class="save-btn" style="margin-top: 1.5rem;">Initialize
-                    Trip</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Trip Selector Modal -->
-    <div id="trip-modal" class="modal-overlay">
-        <div class="modal-content select-modal">
-            <header class="modal-header-sleek">
-                <h3>Your Trips</h3>
-                <button id="close-trip-modal" class="close-btn">&times;</button>
-            </header>
-            <div id="trip-list-menu" class="trip-menu-list">
-                <!-- Populated via JS -->
-            </div>
-
-            <div class="join-trip-section">
-                <input type="text" id="join-code-input" placeholder="Enter Join Code (e.g. A1B2C3)"
-                    class="subtle-input">
-                <button id="btn-join-trip" class="save-btn secondary">Join Trip</button>
-            </div>
-
-            <button id="open-new-trip-modal-btn" class="save-btn secondary">+ Plan New Trip</button>
-        </div>
-    </div>
-
-    <!-- Currency Modal Overlay -->
-    <div id="currency-modal" class="modal-overlay">
-        <div class="modal-content">
-            <h3>Search Currency</h3>
-            <input type="text" id="currency-search-input" class="currency-search-input"
-                placeholder="e.g., CAD, Mexican Peso...">
-            <div id="currency-list" class="currency-list">
-                <!-- Populated via JS -->
-            </div>
-            <button id="close-currency-modal" class="ghost-btn"
-                style="width: 100%; border-color: var(--border); color: var(--text);">Cancel</button>
-        </div>
-    </div>
-
-    <!-- Spending Currency Modal -->
-    <div id="spending-currency-modal" class="modal-overlay">
-        <div class="modal-content select-modal">
-            <header class="modal-header-sleek">
-                <h3>Select Currency</h3>
-                <button id="close-spending-currency-modal" class="close-btn">&times;</button>
-            </header>
-
-            <div class="currency-search-container">
-                <input type="text" id="spending-currency-search" class="currency-search-input"
-                    placeholder="Search country or currency...">
-            </div>
-
-            <div class="quick-select-header">Quick Select</div>
-            <div class="currency-grid-mini">
-                <button class="quick-cur-btn" data-code="USD">USD ($)</button>
-                <button class="quick-cur-btn" data-code="EUR">EUR (€)</button>
-                <button class="quick-cur-btn" data-code="GBP">GBP (£)</button>
-                <button class="quick-cur-btn" data-code="IDR">IDR (Rp)</button>
-                <button class="quick-cur-btn" data-code="THB">THB (฿)</button>
-            </div>
-
-            <div class="spending-currency-list-container">
-                <div id="spending-currency-list" class="audit-list">
-                    <!-- Populated via JS -->
+                <div class="mn-field">
+                    <label>Place name (fills Location)</label>
+                    <input type="text" id="mn-place" placeholder="e.g. Cebu beach bungalow" autocomplete="off">
                 </div>
+                <div class="mn-preview" id="mn-preview"></div>
             </div>
+        </div>
+
+        <button class="save-btn" id="entry-save-btn">Save</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         DATE PICKER BOTTOM SHEET (for date nav)
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="datepicker-overlay" class="sheet-overlay hidden" onclick="closeDatePicker()"></div>
+    <div id="datepicker-sheet" class="bottom-sheet datepicker-sheet hidden">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <span class="sheet-title">Jump to Date</span>
+            <button class="sheet-close" onclick="closeDatePicker()">✕</button>
+        </div>
+        <input type="date" id="datepicker-input" class="datepicker-native">
+        <button class="primary-btn" id="datepicker-confirm-btn" style="margin-top:1rem">Go to Date</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         CURRENCY PICKER BOTTOM SHEET
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="currency-overlay" class="sheet-overlay hidden" onclick="closeCurrencyPicker()"></div>
+    <div id="currency-sheet" class="bottom-sheet currency-sheet hidden">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <span class="sheet-title">Spending Currency</span>
+            <button class="sheet-close" onclick="closeCurrencyPicker()">✕</button>
+        </div>
+        <input type="text" id="currency-search" class="currency-search-input" placeholder="Search currency or country…">
+        <div class="quick-currencies">
+            <button class="quick-cur" data-code="USD">🇺🇸 USD</button>
+            <button class="quick-cur" data-code="EUR">🇪🇺 EUR</button>
+            <button class="quick-cur" data-code="GBP">🇬🇧 GBP</button>
+            <button class="quick-cur" data-code="AUD">🇦🇺 AUD</button>
+            <button class="quick-cur" data-code="IDR">🇮🇩 IDR</button>
+            <button class="quick-cur" data-code="THB">🇹🇭 THB</button>
+            <button class="quick-cur" data-code="VND">🇻🇳 VND</button>
+            <button class="quick-cur" data-code="PHP">🇵🇭 PHP</button>
+            <button class="quick-cur" data-code="SGD">🇸🇬 SGD</button>
+            <button class="quick-cur" data-code="MYR">🇲🇾 MYR</button>
+        </div>
+        <div id="currency-list" class="currency-list-sheet"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         EXPORT MODAL
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="export-overlay" class="sheet-overlay hidden" onclick="closeExportModal()"></div>
+    <div id="export-modal" class="bottom-sheet export-sheet hidden">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <span class="sheet-title">Export Data</span>
+            <button class="sheet-close" onclick="closeExportModal()">✕</button>
+        </div>
+        <div class="export-options">
+            <button class="export-opt-btn" id="export-copy-btn">
+                <span>📋</span> Copy for Google Sheets
+            </button>
+            <button class="export-opt-btn" id="export-csv-btn">
+                <span>📊</span> Download CSV
+            </button>
+        </div>
+        <div class="export-preview-wrap">
+            <pre id="export-preview" class="export-preview"></pre>
         </div>
     </div>
 
-    <!-- CSV Parser -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- Chart.js for Donut -->
+    <!-- Toast notification -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- QRCode.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- Script -->
+    <!-- App Script -->
     <script src="script.js"></script>
 </body>
 
