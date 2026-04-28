@@ -1,104 +1,115 @@
-export function parseExpense(input) {
-  let cleanInput = input.toLowerCase();
-  
-  // Convert spelled-out numbers from dictation to digits
-  const wordToNum = {
-      'one': '1', 'a': '1', 'two': '2', 'three': '3', 'four': '4',
-      'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
-      'ten': '10', 'eleven': '11', 'twelve': '12', 'thirteen': '13',
-      'fourteen': '14', 'fifteen': '15', 'sixteen': '16', 'seventeen': '17',
-      'eighteen': '18', 'nineteen': '19', 'twenty': '20',
-      'thirty': '30', 'forty': '40', 'fifty': '50'
-  };
-
-  for (const [word, num] of Object.entries(wordToNum)) {
-      const regex = new RegExp(`\\b${word}\\b`, 'g');
-      cleanInput = cleanInput.replace(regex, num);
-  }
-
-  const tokens = cleanInput.trim().split(/\s+/);
+export function parseExpense(input, lastCategory = 'other') {
+  const tokens = input.trim().split(/\s+/);
   if (tokens.length === 0) return null;
 
-  // 1. Extract amount (look for the first valid number or math expression)
   let amountStr = tokens[0];
   let amount = null;
-  let startIndex = 1;
+  let amountIndex = -1;
   
-  try {
-      const sanitized = amountStr.replace(/[^0-9+\-*/.]/g, '');
-      if (sanitized) {
-          amount = new Function('return ' + sanitized)();
-      }
-  } catch (e) {
-      // not a valid math expression at start
-  }
+  // Clean currencies like $5 or 5,67 -> 5.67
+  const parseAmount = (str) => {
+      const sanitized = str.replace(/[^0-9+\-*/.,]/g, '').replace(',', '.');
+      if (!sanitized) return null;
+      try {
+          const val = new Function('return ' + sanitized)();
+          return isNaN(val) ? null : val;
+      } catch (e) { return null; }
+  };
 
-  // If first token isn't an amount, search for it
-  if (amount === null || isNaN(amount)) {
-      amount = null;
+  amount = parseAmount(amountStr);
+  if (amount !== null) {
+      amountIndex = 0;
+  } else {
       for (let i = 0; i < tokens.length; i++) {
-         const sanitized = tokens[i].replace(/[^0-9+\-*/.]/g, '');
-         if (sanitized) {
-            try {
-               const val = new Function('return ' + sanitized)();
-               if (!isNaN(val)) {
-                   amount = val;
-                   tokens.splice(i, 1);
-                   startIndex = 0;
-                   break;
-               }
-            } catch(e){}
+         const val = parseAmount(tokens[i]);
+         if (val !== null) {
+             amount = val;
+             amountIndex = i;
+             break;
          }
       }
-      if (amount === null) return null;
   }
 
-  const remainingTokens = tokens.slice(startIndex);
+  if (amount === null) return null;
+
+  // Remove amount from tokens for note parsing
+  const remainingTokens = [...tokens];
+  remainingTokens.splice(amountIndex, 1);
   
-  // Keyword mapping exactly as requested
   const keywordMapping = {
-      'coffee': { main: 'food', sub: 'coffee' },
+      // food
       'breakfast': { main: 'food', sub: 'breakfast' },
       'lunch': { main: 'food', sub: 'lunch' },
       'dinner': { main: 'food', sub: 'dinner' },
-      'uber': { main: 'transportation', sub: 'uber' },
-      'taxi': { main: 'transportation', sub: 'taxi' },
-      'bus': { main: 'transportation', sub: 'bus' },
-      'flight': { main: 'transportation', sub: 'flight' },
+      'coffee': { main: 'food', sub: 'coffee' },
+      'restaurant': { main: 'food', sub: 'restaurant' },
+      'food': { main: 'food', sub: 'food' },
+      
+      // transport
+      'uber': { main: 'transport', sub: 'uber' },
+      'grab': { main: 'transport', sub: 'grab' },
+      'tuktuk': { main: 'transport', sub: 'tuktuk' },
+      'lyft': { main: 'transport', sub: 'lyft' },
+      'bolt': { main: 'transport', sub: 'bolt' },
+      'taxi': { main: 'transport', sub: 'taxi' },
+      'bus': { main: 'transport', sub: 'bus' },
+      'train': { main: 'transport', sub: 'train' },
+      'flight': { main: 'transport', sub: 'flight' },
+      'moped': { main: 'transport', sub: 'moped' },
+      
+      // lodging
       'hotel': { main: 'lodging', sub: 'hotel' },
       'airbnb': { main: 'lodging', sub: 'airbnb' },
-      'museum': { main: 'activities', sub: 'museum' },
-      'tour': { main: 'activities', sub: 'tour' },
-      'shopping': { main: 'shopping', sub: 'shopping' },
+      'hostel': { main: 'lodging', sub: 'hostel' },
+      
+      // consumables
       'water': { main: 'consumables', sub: 'water' },
       'beer': { main: 'consumables', sub: 'beer' },
-      'grocery': { main: 'consumables', sub: 'grocery' }
+      'groceries': { main: 'consumables', sub: 'groceries' },
+      'deodorant': { main: 'consumables', sub: 'deodorant' },
+      'sunscreen': { main: 'consumables', sub: 'sunscreen' },
+      'toothpaste': { main: 'consumables', sub: 'toothpaste' },
+      
+      // activities
+      'museum': { main: 'activities', sub: 'museum' },
+      'tour': { main: 'activities', sub: 'tour' },
+      'movies': { main: 'activities', sub: 'movies' },
+      
+      // shopping
+      'shopping': { main: 'shopping', sub: 'shopping' },
+      'clothes': { main: 'shopping', sub: 'clothes' },
+      'souvenir': { main: 'shopping', sub: 'souvenir' }
   };
 
-  let mainCategory = 'other';
+  let mainCategory = null;
   let subcategories = [];
+  let noteWords = [];
   
   for (const token of remainingTokens) {
-      // Clean punctuation for matching
       const cleanToken = token.toLowerCase().replace(/[^a-z]/g, '');
       if (keywordMapping[cleanToken]) {
-          if (mainCategory === 'other') {
+          if (!mainCategory) {
               mainCategory = keywordMapping[cleanToken].main;
           }
-          if (keywordMapping[cleanToken].sub) {
-              subcategories.push(keywordMapping[cleanToken].sub);
-          }
+          subcategories.push(keywordMapping[cleanToken].sub);
+      } else {
+          // Keep unknown words strictly for the note
+          noteWords.push(token);
       }
   }
 
-  // Deduplicate
+  // If no category matched, use memory
+  if (!mainCategory) {
+      mainCategory = lastCategory;
+  }
+
   subcategories = [...new Set(subcategories)];
 
   return {
       amount: parseFloat(amount.toFixed(2)),
       category: mainCategory,
       subcategories: subcategories,
-      note: remainingTokens.join(' ').trim(),
+      note: noteWords.join(' ').trim(),
       raw_input: input
   };
 }
@@ -106,12 +117,12 @@ export function parseExpense(input) {
 export function getCategoryEmoji(category) {
     const emojis = {
         food: '🍔',
-        transportation: '🚕',
+        transport: '🚕',
         lodging: '🏨',
         shopping: '🛍️',
-        consumables: '🛒',
+        consumables: '🥤',
         activities: '🎟️',
-        other: '📝'
+        other: '📦'
     };
-    return emojis[category] || '📝';
+    return emojis[category] || '📦';
 }

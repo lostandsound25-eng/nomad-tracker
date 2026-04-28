@@ -2,73 +2,108 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import ExpenseInput from './components/ExpenseInput';
 import ExpenseList from './components/ExpenseList';
+import { parseExpense } from './utils/parser';
 
 export default function App() {
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [editingItem, setEditingItem] = useState(null);
 
     useEffect(() => {
+        // Load instantly from local storage (Offline First / Speed)
+        const cached = localStorage.getItem('expenses');
+        if (cached) setExpenses(JSON.parse(cached));
+        
         fetchExpenses();
     }, []);
 
     const fetchExpenses = async () => {
-        setLoading(true);
         const today = new Date().toISOString().split('T')[0];
-        
         const { data, error } = await supabase
             .from('expenses')
             .select('*')
             .gte('date', today)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(30);
 
         if (!error && data) {
             setExpenses(data);
-        } else if (error) {
-            console.error("Fetch error:", error);
+            localStorage.setItem('expenses', JSON.stringify(data));
         }
         setLoading(false);
     };
 
-    const handleAddExpense = async (parsedData) => {
-        const tempId = Date.now().toString();
-        const newExpense = {
-            id: tempId,
+    const handleSaveExpense = async (rawString) => {
+        const lastCategory = localStorage.getItem('lastCategory') || 'other';
+        const parsedData = parseExpense(rawString, lastCategory);
+        
+        if (!parsedData) {
+            alert("Could not extract an amount. Try '15 lunch'");
+            return;
+        }
+
+        // Memory: Save last used category
+        localStorage.setItem('lastCategory', parsedData.category);
+
+        const newExpenseData = {
             ...parsedData,
-            date: new Date().toISOString().split('T')[0],
-            created_at: new Date().toISOString()
+            date: editingItem ? editingItem.date : new Date().toISOString().split('T')[0],
         };
 
-        // Optimistic update
-        setExpenses([newExpense, ...expenses]);
+        if (editingItem) {
+            // OPTIMISTIC UPDATE
+            const previousExpenses = [...expenses];
+            const updatedExpenses = expenses.map(e => e.id === editingItem.id ? { ...e, ...newExpenseData } : e);
+            setExpenses(updatedExpenses);
+            localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+            setEditingItem(null);
 
-        // Backend sync
-        const { data, error } = await supabase
-            .from('expenses')
-            .insert([
-                { 
-                    amount: parsedData.amount,
-                    category: parsedData.category,
-                    subcategories: parsedData.subcategories,
-                    note: parsedData.note,
-                    raw_input: parsedData.raw_input,
-                    date: newExpense.date
-                }
-            ])
-            .select();
+            const { error } = await supabase
+                .from('expenses')
+                .update({ 
+                    amount: newExpenseData.amount,
+                    category: newExpenseData.category,
+                    subcategories: newExpenseData.subcategories,
+                    note: newExpenseData.note,
+                    raw_input: newExpenseData.raw_input
+                })
+                .eq('id', editingItem.id);
 
-        if (error) {
-            console.error("Insert error:", error);
-            alert("Failed to save to database. (Is RLS disabled?)");
-            setExpenses(expenses.filter(e => e.id !== tempId));
-        } else if (data && data[0]) {
-            setExpenses(prev => prev.map(e => e.id === tempId ? data[0] : e));
+            if (error) {
+                console.error(error);
+                setExpenses(previousExpenses); // revert
+            }
+        } else {
+            // OPTIMISTIC INSERT
+            const tempId = Date.now().toString();
+            const optimisticExpense = { id: tempId, created_at: new Date().toISOString(), ...newExpenseData };
+            
+            const newExpenseList = [optimisticExpense, ...expenses];
+            setExpenses(newExpenseList);
+            localStorage.setItem('expenses', JSON.stringify(newExpenseList));
+
+            const { data, error } = await supabase
+                .from('expenses')
+                .insert([{ ...newExpenseData }])
+                .select();
+
+            if (error) {
+                console.error(error);
+                setExpenses(expenses.filter(e => e.id !== tempId)); // revert
+            } else if (data && data[0]) {
+                // Background swap temp ID with real ID
+                setExpenses(prev => prev.map(e => e.id === tempId ? data[0] : e));
+            }
         }
     };
 
     const handleDelete = async (id) => {
         const previousExpenses = [...expenses];
+        const newExpenseList = expenses.filter(e => e.id !== id);
+        
         // Optimistic delete
-        setExpenses(expenses.filter(e => e.id !== id));
+        setExpenses(newExpenseList);
+        localStorage.setItem('expenses', JSON.stringify(newExpenseList));
 
         const { error } = await supabase
             .from('expenses')
@@ -76,36 +111,35 @@ export default function App() {
             .eq('id', id);
 
         if (error) {
-            console.error("Delete error:", error);
-            alert("Failed to delete.");
-            setExpenses(previousExpenses);
+            console.error(error);
+            setExpenses(previousExpenses); // Revert
+            localStorage.setItem('expenses', JSON.stringify(previousExpenses));
         }
+    };
+
+    const handleEdit = (expense) => {
+        setEditingItem(expense);
     };
 
     const totalToday = expenses.reduce((sum, e) => sum + e.amount, 0);
 
     return (
-        <div className="min-h-screen bg-[#F2F2F7] max-w-md mx-auto relative shadow-2xl flex flex-col font-sans">
-            <header className="bg-white/80 backdrop-blur-xl sticky top-0 z-10 border-b border-[#C6C6C8] px-5 py-4 safe-area-top shadow-sm">
-                <div className="flex justify-between items-center mb-1.5">
-                    <h1 className="text-[17px] font-semibold tracking-tight text-black">Trip to Tokyo</h1>
-                    <button className="text-[#007AFF] text-[15px] font-medium">Change</button>
-                </div>
-                <div className="flex items-baseline gap-2">
-                    <span className="text-[#8E8E93] text-[13px] font-semibold uppercase tracking-wider">Today</span>
-                    <span className="text-[34px] font-bold tracking-tight text-black">${totalToday.toFixed(2)}</span>
-                </div>
+        <div className="min-h-screen bg-[#F2F2F7] max-w-md mx-auto relative flex flex-col font-sans select-none">
+            {/* Extremely minimal header */}
+            <header className="pt-14 pb-5 px-5">
+                <div className="text-[#8E8E93] text-[13px] font-semibold uppercase tracking-wider mb-1">Today</div>
+                <div className="text-[44px] font-bold tracking-tight text-black leading-none">${totalToday.toFixed(2)}</div>
             </header>
 
-            <main className="flex-1 overflow-y-auto px-4 pt-6">
-                {loading ? (
-                    <div className="text-center text-[#8E8E93] py-10 text-[15px]">Loading...</div>
-                ) : (
-                    <ExpenseList expenses={expenses} onDelete={handleDelete} />
-                )}
+            <main className="flex-1 overflow-y-auto px-4">
+                <ExpenseList expenses={expenses} onDelete={handleDelete} onEdit={handleEdit} />
             </main>
 
-            <ExpenseInput onAddExpense={handleAddExpense} />
+            <ExpenseInput 
+                onAddExpense={handleSaveExpense} 
+                editingItem={editingItem} 
+                onCancelEdit={() => setEditingItem(null)} 
+            />
         </div>
     );
 }
