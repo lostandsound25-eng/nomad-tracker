@@ -1,5 +1,22 @@
 export function parseExpense(input) {
-  const tokens = input.trim().split(/\s+/);
+  let cleanInput = input.toLowerCase();
+  
+  // Convert spelled-out numbers from dictation to digits
+  const wordToNum = {
+      'one': '1', 'a': '1', 'two': '2', 'three': '3', 'four': '4',
+      'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
+      'ten': '10', 'eleven': '11', 'twelve': '12', 'thirteen': '13',
+      'fourteen': '14', 'fifteen': '15', 'sixteen': '16', 'seventeen': '17',
+      'eighteen': '18', 'nineteen': '19', 'twenty': '20',
+      'thirty': '30', 'forty': '40', 'fifty': '50'
+  };
+
+  for (const [word, num] of Object.entries(wordToNum)) {
+      const regex = new RegExp(`\\b${word}\\b`, 'g');
+      cleanInput = cleanInput.replace(regex, num);
+  }
+
+  const tokens = cleanInput.trim().split(/\s+/);
   if (tokens.length === 0) return null;
 
   // 1. Extract amount (look for the first valid number or math expression)
