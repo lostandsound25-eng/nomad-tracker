@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, Plus } from 'lucide-react';
 
-export default function ExpenseInput({ onAddExpense, editingItem }) {
+export default function ExpenseInput({ onAddExpense }) {
     const [input, setInput] = useState('');
     const [isListening, setIsListening] = useState(false);
     const inputRef = useRef(null);
 
-    // Auto-focus on load and when editing an item
+    // Auto-focus on load
     useEffect(() => {
-        if (editingItem) {
-            setInput(editingItem.raw_input);
-        }
         inputRef.current?.focus();
-    }, [editingItem]);
+    }, []);
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;

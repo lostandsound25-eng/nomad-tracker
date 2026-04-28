@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import ExpenseInput from './components/ExpenseInput';
 import ExpenseList from './components/ExpenseList';
+import ExpenseModal from './components/ExpenseModal';
 import { parseExpense } from './utils/parser';
 
 export default function App() {
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [editingItem, setEditingItem] = useState(null);
+    
+    // Modal State
+    const [modalExpense, setModalExpense] = useState(null);
+    const [isDoubleCheck, setIsDoubleCheck] = useState(false);
 
     useEffect(() => {
-        // Load instantly from local storage (Offline First / Speed)
         const cached = localStorage.getItem('expenses');
         if (cached) setExpenses(JSON.parse(cached));
-        
         fetchExpenses();
     }, []);
 
@@ -33,7 +35,7 @@ export default function App() {
         setLoading(false);
     };
 
-    const handleSaveExpense = async (rawString) => {
+    const handleInitialSubmit = (rawString) => {
         const lastCategory = localStorage.getItem('lastCategory') || 'other';
         const parsedData = parseExpense(rawString, lastCategory);
         
@@ -42,21 +44,38 @@ export default function App() {
             return;
         }
 
+        // Check if parser flagged this for double checking (e.g. "5:50")
+        if (parsedData.needsConfirmation) {
+            setModalExpense(parsedData);
+            setIsDoubleCheck(true);
+            return; // Halt save and open modal
+        }
+
+        executeSave(parsedData);
+    };
+
+    const executeSave = async (expenseData) => {
         // Memory: Save last used category
-        localStorage.setItem('lastCategory', parsedData.category);
+        localStorage.setItem('lastCategory', expenseData.category);
+
+        const isUpdate = !!expenseData.id;
 
         const newExpenseData = {
-            ...parsedData,
-            date: editingItem ? editingItem.date : new Date().toISOString().split('T')[0],
+            ...expenseData,
+            date: expenseData.date || new Date().toISOString().split('T')[0],
         };
 
-        if (editingItem) {
+        // Remove our local flag before sending to DB
+        delete newExpenseData.needsConfirmation;
+
+        setModalExpense(null); // Close modal
+
+        if (isUpdate) {
             // OPTIMISTIC UPDATE
             const previousExpenses = [...expenses];
-            const updatedExpenses = expenses.map(e => e.id === editingItem.id ? { ...e, ...newExpenseData } : e);
+            const updatedExpenses = expenses.map(e => e.id === expenseData.id ? newExpenseData : e);
             setExpenses(updatedExpenses);
             localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
-            setEditingItem(null);
 
             const { error } = await supabase
                 .from('expenses')
@@ -67,7 +86,7 @@ export default function App() {
                     note: newExpenseData.note,
                     raw_input: newExpenseData.raw_input
                 })
-                .eq('id', editingItem.id);
+                .eq('id', expenseData.id);
 
             if (error) {
                 console.error(error);
@@ -91,7 +110,6 @@ export default function App() {
                 console.error(error);
                 setExpenses(expenses.filter(e => e.id !== tempId)); // revert
             } else if (data && data[0]) {
-                // Background swap temp ID with real ID
                 setExpenses(prev => prev.map(e => e.id === tempId ? data[0] : e));
             }
         }
@@ -101,7 +119,6 @@ export default function App() {
         const previousExpenses = [...expenses];
         const newExpenseList = expenses.filter(e => e.id !== id);
         
-        // Optimistic delete
         setExpenses(newExpenseList);
         localStorage.setItem('expenses', JSON.stringify(newExpenseList));
 
@@ -112,33 +129,37 @@ export default function App() {
 
         if (error) {
             console.error(error);
-            setExpenses(previousExpenses); // Revert
+            setExpenses(previousExpenses); 
             localStorage.setItem('expenses', JSON.stringify(previousExpenses));
         }
     };
 
-    const handleEdit = (expense) => {
-        setEditingItem(expense);
+    const handleEditClick = (expense) => {
+        setModalExpense(expense);
+        setIsDoubleCheck(false);
     };
 
     const totalToday = expenses.reduce((sum, e) => sum + e.amount, 0);
 
     return (
         <div className="min-h-screen bg-[#F2F2F7] max-w-md mx-auto relative flex flex-col font-sans select-none">
-            {/* Extremely minimal header */}
             <header className="pt-14 pb-5 px-5">
                 <div className="text-[#8E8E93] text-[13px] font-semibold uppercase tracking-wider mb-1">Today</div>
                 <div className="text-[44px] font-bold tracking-tight text-black leading-none">${totalToday.toFixed(2)}</div>
             </header>
 
             <main className="flex-1 overflow-y-auto px-4">
-                <ExpenseList expenses={expenses} onDelete={handleDelete} onEdit={handleEdit} />
+                <ExpenseList expenses={expenses} onDelete={handleDelete} onEdit={handleEditClick} />
             </main>
 
-            <ExpenseInput 
-                onAddExpense={handleSaveExpense} 
-                editingItem={editingItem} 
-                onCancelEdit={() => setEditingItem(null)} 
+            <ExpenseInput onAddExpense={handleInitialSubmit} />
+
+            <ExpenseModal 
+                isOpen={!!modalExpense}
+                expense={modalExpense}
+                isDoubleCheck={isDoubleCheck}
+                onSave={executeSave}
+                onClose={() => setModalExpense(null)}
             />
         </div>
     );

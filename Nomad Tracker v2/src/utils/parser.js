@@ -1,5 +1,14 @@
 export function parseExpense(input, lastCategory = 'other') {
-  const tokens = input.trim().split(/\s+/);
+  let needsConfirmation = false;
+  let textToParse = input.trim();
+  
+  // Bug fix: iOS Dictation turns "five fifty" into "5:50"
+  if (/\b(\d+):(\d{2})\b/.test(textToParse)) {
+      textToParse = textToParse.replace(/\b(\d+):(\d{2})\b/g, '$1.$2');
+      needsConfirmation = true;
+  }
+
+  const tokens = textToParse.split(/\s+/);
   if (tokens.length === 0) return null;
 
   let amountStr = tokens[0];
@@ -45,40 +54,37 @@ export function parseExpense(input, lastCategory = 'other') {
       'restaurant': { main: 'food', sub: 'restaurant' },
       'food': { main: 'food', sub: 'food' },
       
-      // transport
-      'uber': { main: 'transport', sub: 'uber' },
-      'grab': { main: 'transport', sub: 'grab' },
-      'tuktuk': { main: 'transport', sub: 'tuktuk' },
-      'lyft': { main: 'transport', sub: 'lyft' },
-      'bolt': { main: 'transport', sub: 'bolt' },
-      'taxi': { main: 'transport', sub: 'taxi' },
-      'bus': { main: 'transport', sub: 'bus' },
-      'train': { main: 'transport', sub: 'train' },
-      'flight': { main: 'transport', sub: 'flight' },
-      'moped': { main: 'transport', sub: 'moped' },
+      // transportation
+      'uber': { main: 'transportation', sub: 'uber' },
+      'grab': { main: 'transportation', sub: 'grab' },
+      'tuktuk': { main: 'transportation', sub: 'tuktuk' },
+      'lyft': { main: 'transportation', sub: 'lyft' },
+      'bolt': { main: 'transportation', sub: 'bolt' },
+      'taxi': { main: 'transportation', sub: 'taxi' },
+      'bus': { main: 'transportation', sub: 'bus' },
+      'train': { main: 'transportation', sub: 'train' },
+      'flight': { main: 'transportation', sub: 'flight' },
+      'flights': { main: 'transportation', sub: 'flights' },
+      'moped': { main: 'transportation', sub: 'moped' },
       
       // lodging
       'hotel': { main: 'lodging', sub: 'hotel' },
       'airbnb': { main: 'lodging', sub: 'airbnb' },
       'hostel': { main: 'lodging', sub: 'hostel' },
       
-      // consumables
-      'water': { main: 'consumables', sub: 'water' },
-      'beer': { main: 'consumables', sub: 'beer' },
-      'groceries': { main: 'consumables', sub: 'groceries' },
-      'deodorant': { main: 'consumables', sub: 'deodorant' },
-      'sunscreen': { main: 'consumables', sub: 'sunscreen' },
-      'toothpaste': { main: 'consumables', sub: 'toothpaste' },
-      
-      // activities
-      'museum': { main: 'activities', sub: 'museum' },
-      'tour': { main: 'activities', sub: 'tour' },
-      'movies': { main: 'activities', sub: 'movies' },
-      
-      // shopping
-      'shopping': { main: 'shopping', sub: 'shopping' },
-      'clothes': { main: 'shopping', sub: 'clothes' },
-      'souvenir': { main: 'shopping', sub: 'souvenir' }
+      // other (everything else maps here)
+      'water': { main: 'other', sub: 'water' },
+      'beer': { main: 'other', sub: 'beer' },
+      'groceries': { main: 'other', sub: 'groceries' },
+      'deodorant': { main: 'other', sub: 'deodorant' },
+      'sunscreen': { main: 'other', sub: 'sunscreen' },
+      'toothpaste': { main: 'other', sub: 'toothpaste' },
+      'museum': { main: 'other', sub: 'museum' },
+      'tour': { main: 'other', sub: 'tour' },
+      'movies': { main: 'other', sub: 'movies' },
+      'shopping': { main: 'other', sub: 'shopping' },
+      'clothes': { main: 'other', sub: 'clothes' },
+      'souvenir': { main: 'other', sub: 'souvenir' }
   };
 
   let mainCategory = null;
@@ -93,12 +99,10 @@ export function parseExpense(input, lastCategory = 'other') {
           }
           subcategories.push(keywordMapping[cleanToken].sub);
       } else {
-          // Keep unknown words strictly for the note
           noteWords.push(token);
       }
   }
 
-  // If no category matched, use memory
   if (!mainCategory) {
       mainCategory = lastCategory;
   }
@@ -110,18 +114,16 @@ export function parseExpense(input, lastCategory = 'other') {
       category: mainCategory,
       subcategories: subcategories,
       note: noteWords.join(' ').trim(),
-      raw_input: input
+      raw_input: input,
+      needsConfirmation
   };
 }
 
 export function getCategoryEmoji(category) {
     const emojis = {
-        food: '🍔',
-        transport: '🚕',
         lodging: '🏨',
-        shopping: '🛍️',
-        consumables: '🥤',
-        activities: '🎟️',
+        transportation: '🚕',
+        food: '🍔',
         other: '📦'
     };
     return emojis[category] || '📦';
