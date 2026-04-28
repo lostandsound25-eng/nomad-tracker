@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mic, Send } from 'lucide-react';
 import { parseExpense } from '../utils/parser';
 

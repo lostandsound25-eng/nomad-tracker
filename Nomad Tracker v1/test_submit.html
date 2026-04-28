@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <form id="myForm" onsubmit="return false;">
+    <button type="submit">Submit</button>
+  </form>
+  <script>
+    let fired = false;
+    document.getElementById('myForm').addEventListener('submit', (e) => {
+      fired = true;
+      e.preventDefault();
+    });
+    document.getElementById('myForm').dispatchEvent(new Event('submit', { cancelable: true }));
+    console.log(fired);
+  </script>
+</body>
+</html>
