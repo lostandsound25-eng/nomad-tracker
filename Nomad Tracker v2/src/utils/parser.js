@@ -2,8 +2,10 @@ export function parseExpense(input) {
   const tokens = input.trim().split(/\s+/);
   if (tokens.length === 0) return null;
 
+  // 1. Extract amount (look for the first valid number or math expression)
   let amountStr = tokens[0];
   let amount = null;
+  let startIndex = 1;
   
   try {
       const sanitized = amountStr.replace(/[^0-9+\-*/.]/g, '');
@@ -14,7 +16,7 @@ export function parseExpense(input) {
       // not a valid math expression at start
   }
 
-  let startIndex = 1;
+  // If first token isn't an amount, search for it
   if (amount === null || isNaN(amount)) {
       amount = null;
       for (let i = 0; i < tokens.length; i++) {
@@ -34,36 +36,52 @@ export function parseExpense(input) {
       if (amount === null) return null;
   }
 
-  const remainingText = tokens.slice(startIndex).join(' ').toLowerCase();
+  const remainingTokens = tokens.slice(startIndex);
   
-  const categories = {
-      food: ['breakfast', 'lunch', 'dinner', 'coffee', 'food', 'restaurant', 'snack', 'cafe', 'grocery', 'meal'],
-      transportation: ['uber', 'lyft', 'taxi', 'bus', 'train', 'flight', 'airport', 'metro', 'gas', 'transit'],
-      lodging: ['hotel', 'airbnb', 'hostel', 'rent', 'accommodation'],
-      shopping: ['clothes', 'mall', 'shopping', 'store', 'gift'],
-      consumables: ['market', 'pharmacy', 'water', 'supplies'],
-      activities: ['museum', 'tour', 'ticket', 'movie', 'event', 'party']
+  // Keyword mapping exactly as requested
+  const keywordMapping = {
+      'coffee': { main: 'food', sub: 'coffee' },
+      'breakfast': { main: 'food', sub: 'breakfast' },
+      'lunch': { main: 'food', sub: 'lunch' },
+      'dinner': { main: 'food', sub: 'dinner' },
+      'uber': { main: 'transportation', sub: 'uber' },
+      'taxi': { main: 'transportation', sub: 'taxi' },
+      'bus': { main: 'transportation', sub: 'bus' },
+      'flight': { main: 'transportation', sub: 'flight' },
+      'hotel': { main: 'lodging', sub: 'hotel' },
+      'airbnb': { main: 'lodging', sub: 'airbnb' },
+      'museum': { main: 'activities', sub: 'museum' },
+      'tour': { main: 'activities', sub: 'tour' },
+      'shopping': { main: 'shopping', sub: 'shopping' },
+      'water': { main: 'consumables', sub: 'water' },
+      'beer': { main: 'consumables', sub: 'beer' },
+      'grocery': { main: 'consumables', sub: 'grocery' }
   };
 
   let mainCategory = 'other';
   let subcategories = [];
   
-  for (const [cat, keywords] of Object.entries(categories)) {
-      for (const keyword of keywords) {
-          if (remainingText.includes(keyword)) {
-              mainCategory = cat;
-              subcategories.push(keyword);
+  for (const token of remainingTokens) {
+      // Clean punctuation for matching
+      const cleanToken = token.toLowerCase().replace(/[^a-z]/g, '');
+      if (keywordMapping[cleanToken]) {
+          if (mainCategory === 'other') {
+              mainCategory = keywordMapping[cleanToken].main;
+          }
+          if (keywordMapping[cleanToken].sub) {
+              subcategories.push(keywordMapping[cleanToken].sub);
           }
       }
   }
 
+  // Deduplicate
   subcategories = [...new Set(subcategories)];
 
   return {
       amount: parseFloat(amount.toFixed(2)),
       category: mainCategory,
       subcategories: subcategories,
-      note: remainingText,
+      note: remainingTokens.join(' ').trim(),
       raw_input: input
   };
 }

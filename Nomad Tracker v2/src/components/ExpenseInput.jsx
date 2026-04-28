@@ -6,9 +6,11 @@ export default function ExpenseInput({ onAddExpense }) {
     const [input, setInput] = useState('');
     const [isListening, setIsListening] = useState(false);
 
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
-    if ('webkitSpeechRecognition' in window) {
-        recognition = new window.webkitSpeechRecognition();
+    
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.interimResults = false;
 
@@ -19,7 +21,29 @@ export default function ExpenseInput({ onAddExpense }) {
             setInput(transcript);
             setTimeout(() => handleSubmit(transcript), 300);
         };
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error", event.error);
+            setIsListening(false);
+        };
     }
+
+    // --- Smart Auto-Submit for Native Dictation ---
+    useEffect(() => {
+        if (!input.trim()) return;
+
+        const parsed = parseExpense(input);
+        // Only auto-submit if we found a valid amount AND recognized a category.
+        // If category is 'other', they might still be dictating/typing.
+        const isComplete = parsed && parsed.amount > 0 && parsed.category !== 'other';
+
+        if (isComplete) {
+            // Wait 2 seconds. If input changes, timer resets. If not, boom, it submits!
+            const timer = setTimeout(() => {
+                handleSubmit(input);
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [input]);
 
     const handleSubmit = (textToParse = input) => {
         if (!textToParse.trim()) return;
@@ -43,11 +67,16 @@ export default function ExpenseInput({ onAddExpense }) {
     };
 
     const toggleVoice = () => {
-        if (!recognition) return alert("Voice input not supported in this browser.");
+        if (!recognition) return alert("Web voice input is disabled by your phone when saved to the Home Screen. Tip: Just tap the input box and use the microphone button on your phone's native keyboard!");
+        
         if (isListening) {
             recognition.stop();
         } else {
-            recognition.start();
+            try {
+                recognition.start();
+            } catch (e) {
+                alert("Microphone permission denied. Tip: Use the microphone button on your phone's native keyboard!");
+            }
         }
     };
 
