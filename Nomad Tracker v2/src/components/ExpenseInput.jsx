@@ -13,7 +13,7 @@ export default function ExpenseInput({ onAddExpense }) {
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
-    
+
     if (SpeechRecognition) {
         recognition = new SpeechRecognition();
         recognition.continuous = false;
@@ -33,11 +33,11 @@ export default function ExpenseInput({ onAddExpense }) {
     const handleSubmit = (e) => {
         if (e) e.preventDefault();
         if (!input.trim()) return;
-        
+
         onAddExpense(input);
         setInput(''); // Clear instantly
         inputRef.current?.focus(); // NEVER lose focus
-        
+
         if (navigator.vibrate) navigator.vibrate(50);
     };
 
@@ -50,7 +50,7 @@ export default function ExpenseInput({ onAddExpense }) {
 
     const toggleVoice = () => {
         if (!recognition) return alert("Native dictation is faster! Tap the input and use the microphone on your keyboard.");
-        
+
         if (isListening) {
             recognition.stop();
         } else {
@@ -63,21 +63,22 @@ export default function ExpenseInput({ onAddExpense }) {
     };
 
     return (
-        <div 
+        <div
             className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-[#C6C6C8] px-4 py-3 safe-area-bottom shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-20 cursor-text"
             onClick={() => inputRef.current?.focus()}
         >
             <div className="flex items-center gap-3 max-w-md mx-auto relative">
-                <button 
+                <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); toggleVoice(); }}
                     className={`p-2.5 rounded-full transition-colors flex-shrink-0 ${isListening ? 'bg-[#FF3B30] text-white' : 'text-[#8E8E93] hover:text-[#007AFF] bg-[#F2F2F7]'}`}
                 >
                     <Mic size={22} />
                 </button>
-                
-                <input 
+
+                <input
                     ref={inputRef}
+                    autoFocus={true}
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -85,8 +86,8 @@ export default function ExpenseInput({ onAddExpense }) {
                     placeholder={isListening ? "Listening..." : "e.g. 15.50 lunch"}
                     className="flex-1 bg-[#F2F2F7] border border-transparent focus:border-[#007AFF] focus:bg-white focus:shadow-[0_0_0_3px_rgba(0,122,255,0.1)] rounded-full px-5 py-3 outline-none transition-all text-[16px] placeholder-[#8E8E93]"
                 />
-                
-                <button 
+
+                <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); handleSubmit(); }}
                     disabled={!input.trim()}

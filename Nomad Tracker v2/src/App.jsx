@@ -3,12 +3,13 @@ import { supabase } from './lib/supabase';
 import ExpenseInput from './components/ExpenseInput';
 import ExpenseList from './components/ExpenseList';
 import ExpenseModal from './components/ExpenseModal';
+import CategoryBreakdown from './components/CategoryBreakdown';
 import { parseExpense } from './utils/parser';
 
 export default function App() {
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+
     // Modal State
     const [modalExpense, setModalExpense] = useState(null);
     const [isDoubleCheck, setIsDoubleCheck] = useState(false);
@@ -38,7 +39,7 @@ export default function App() {
     const handleInitialSubmit = (rawString) => {
         const lastCategory = localStorage.getItem('lastCategory') || 'other';
         const parsedData = parseExpense(rawString, lastCategory);
-        
+
         if (!parsedData) {
             alert("Could not extract an amount. Try '15 lunch'");
             return;
@@ -79,7 +80,7 @@ export default function App() {
 
             const { error } = await supabase
                 .from('expenses')
-                .update({ 
+                .update({
                     amount: newExpenseData.amount,
                     category: newExpenseData.category,
                     subcategories: newExpenseData.subcategories,
@@ -96,7 +97,7 @@ export default function App() {
             // OPTIMISTIC INSERT
             const tempId = Date.now().toString();
             const optimisticExpense = { id: tempId, created_at: new Date().toISOString(), ...newExpenseData };
-            
+
             const newExpenseList = [optimisticExpense, ...expenses];
             setExpenses(newExpenseList);
             localStorage.setItem('expenses', JSON.stringify(newExpenseList));
@@ -118,7 +119,7 @@ export default function App() {
     const handleDelete = async (id) => {
         const previousExpenses = [...expenses];
         const newExpenseList = expenses.filter(e => e.id !== id);
-        
+
         setExpenses(newExpenseList);
         localStorage.setItem('expenses', JSON.stringify(newExpenseList));
 
@@ -129,7 +130,7 @@ export default function App() {
 
         if (error) {
             console.error(error);
-            setExpenses(previousExpenses); 
+            setExpenses(previousExpenses);
             localStorage.setItem('expenses', JSON.stringify(previousExpenses));
         }
     };
@@ -143,18 +144,38 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-[#F2F2F7] max-w-md mx-auto relative flex flex-col font-sans select-none">
+            {/* Extremely minimal header */}
             <header className="pt-14 pb-5 px-5">
                 <div className="text-[#8E8E93] text-[13px] font-semibold uppercase tracking-wider mb-1">Today</div>
                 <div className="text-[44px] font-bold tracking-tight text-black leading-none">${totalToday.toFixed(2)}</div>
             </header>
 
             <main className="flex-1 overflow-y-auto px-4">
-                <ExpenseList expenses={expenses} onDelete={handleDelete} onEdit={handleEditClick} />
+                {expenses.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center pt-24 text-[#8E8E93]">
+                        <div className="text-[44px] mb-4 opacity-80">🏝️</div>
+                        <p className="text-[18px] font-semibold text-black/60">Ready to track.</p>
+                        <p className="text-[14px] mt-1 opacity-70">Try typing "5.50 coffee"</p>
+                    </div>
+                ) : (
+                    <>
+                        <h2 className="text-[12px] font-bold text-[#8E8E93] uppercase tracking-wider mb-2.5 ml-2 mt-2">Today's Breakdown</h2>
+                        <CategoryBreakdown expenses={expenses} onEdit={handleEditClick} />
+
+                        <div className="flex items-center gap-3 my-7 px-1">
+                            <div className="h-[1px] bg-[#C6C6C8]/40 flex-1"></div>
+                            <div className="text-[11px] font-bold text-[#8E8E93] uppercase tracking-wider">Recently Added</div>
+                            <div className="h-[1px] bg-[#C6C6C8]/40 flex-1"></div>
+                        </div>
+                        
+                        <ExpenseList expenses={expenses.slice(0, 3)} onDelete={handleDelete} onEdit={handleEditClick} />
+                    </>
+                )}
             </main>
 
             <ExpenseInput onAddExpense={handleInitialSubmit} />
 
-            <ExpenseModal 
+            <ExpenseModal
                 isOpen={!!modalExpense}
                 expense={modalExpense}
                 isDoubleCheck={isDoubleCheck}

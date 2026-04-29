@@ -14,7 +14,7 @@ function SwipeableExpenseItem({ expense, onDelete, onEdit }) {
     const handleTouchMove = (e) => {
         if (startX.current === null) return;
         const diff = e.touches[0].clientX - startX.current;
-        if (diff < 0 && diff > -100) { 
+        if (diff < 0 && diff > -100) {
             setOffset(diff);
         }
     };
@@ -31,7 +31,7 @@ function SwipeableExpenseItem({ expense, onDelete, onEdit }) {
     return (
         <div className="relative overflow-hidden rounded-[16px] bg-[#FF3B30] mb-2.5 shadow-sm transition-all animate-in fade-in slide-in-from-top-4 duration-150">
             {/* Delete Background Button */}
-            <button 
+            <button
                 onClick={(e) => { e.stopPropagation(); onDelete(expense.id); }}
                 className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center text-white"
             >
@@ -39,7 +39,7 @@ function SwipeableExpenseItem({ expense, onDelete, onEdit }) {
             </button>
 
             {/* Foreground Card */}
-            <div 
+            <div
                 className="bg-white p-4 flex items-center justify-between relative z-10 transition-transform active:bg-gray-50 cursor-pointer"
                 style={{ transform: `translateX(${offset}px)` }}
                 onTouchStart={handleTouchStart}
@@ -63,7 +63,7 @@ function SwipeableExpenseItem({ expense, onDelete, onEdit }) {
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="text-right flex-shrink-0 pl-3">
                     <div className="font-bold text-[18px] text-black">
                         ${expense.amount.toFixed(2)}
@@ -78,23 +78,16 @@ function SwipeableExpenseItem({ expense, onDelete, onEdit }) {
 }
 
 export default function ExpenseList({ expenses, onDelete, onEdit }) {
-    if (expenses.length === 0) {
-        return (
-            <div className="text-center text-[#8E8E93] py-12">
-                <p className="text-[16px] font-medium text-black/50">Ready to track.</p>
-                <p className="text-[14px] mt-2 opacity-60">"5.50 coffee"</p>
-            </div>
-        );
-    }
+    if (!expenses || expenses.length === 0) return null;
 
     return (
         <div className="pb-32 px-1">
             {expenses.map((expense) => (
-                <SwipeableExpenseItem 
-                    key={expense.id} 
-                    expense={expense} 
-                    onDelete={onDelete} 
-                    onEdit={onEdit} 
+                <SwipeableExpenseItem
+                    key={expense.id}
+                    expense={expense}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
                 />
             ))}
         </div>

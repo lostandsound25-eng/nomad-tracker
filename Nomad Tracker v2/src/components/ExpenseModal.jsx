@@ -26,15 +26,15 @@ export default function ExpenseModal({ isOpen, expense, isDoubleCheck, onSave, o
                         {isDoubleCheck ? "Did you mean?" : "Edit Logic"}
                     </h3>
                     <button onClick={onClose} className="p-1.5 bg-[#F2F2F7] rounded-full text-[#8E8E93] hover:bg-[#E5E5EA] transition-colors">
-                        <X size={20}/>
+                        <X size={20} />
                     </button>
                 </div>
-                
+
                 <div className="space-y-4.5">
                     {isDoubleCheck && (
-                         <div className="text-[14px] text-[#8E8E93] bg-[#F2F2F7] p-3 rounded-[12px] mb-4 border border-[#E5E5EA]">
-                             <span className="font-medium text-black">You said:</span> "{expense?.raw_input}"
-                         </div>
+                        <div className="text-[14px] text-[#8E8E93] bg-[#F2F2F7] p-3 rounded-[12px] mb-4 border border-[#E5E5EA]">
+                            <span className="font-medium text-black">You said:</span> "{expense?.raw_input}"
+                        </div>
                     )}
 
                     <div>
@@ -66,14 +66,14 @@ export default function ExpenseModal({ isOpen, expense, isDoubleCheck, onSave, o
                     </div>
                 </div>
 
-                <button 
+                <button
                     onClick={() => onSave({
                         ...expense,
                         amount: parseFloat(amount) || 0,
                         category,
                         subcategories: subcategories.split(',').map(s => s.trim()).filter(Boolean),
                         note
-                    })} 
+                    })}
                     className="w-full bg-[#007AFF] hover:bg-[#0056b3] text-white font-semibold text-[17px] py-4 rounded-[14px] mt-6 flex items-center justify-center gap-2 transition-colors shadow-md"
                 >
                     <Check size={22} className="stroke-[2.5]" />
